@@ -144,7 +144,9 @@ export default function SettingsPage() {
 
   // User Modals State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addUserError, setAddUserError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editUserError, setEditUserError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState<{
     open: boolean;
     title: string;
@@ -323,12 +325,14 @@ export default function SettingsPage() {
   // Add User Submit
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAddUserError(null);
+
     if (!addUserForm.name.trim() || !addUserForm.email.trim() || !addUserForm.password) {
-      setErrorBanner("Name, email, and password are required.");
+      setAddUserError("Name, email, and password are required.");
       return;
     }
     if (!addUserForm.idValue.trim()) {
-      setErrorBanner("Identifier (Employee ID or Student ID) is required.");
+      setAddUserError("Identifier (Employee ID or Student ID) is required.");
       return;
     }
 
@@ -355,11 +359,14 @@ export default function SettingsPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to create user");
+        const errorMsg = data.error || (data.details && Array.isArray(data.details) ? data.details.join(", ") : "Failed to create user");
+        setAddUserError(errorMsg);
+        return;
       }
 
       setSuccessBanner(`User ${data.user.name} (${data.user.email}) created successfully.`);
       setShowAddModal(false);
+      setAddUserError(null);
       setAddUserForm({
         name: "",
         email: "",
@@ -371,7 +378,7 @@ export default function SettingsPage() {
       });
       fetchUsers();
     } catch (err: any) {
-      setErrorBanner(err.message || "Error adding user");
+      setAddUserError(err.message || "Error adding user");
     } finally {
       setSubmittingAdd(false);
     }
@@ -381,6 +388,7 @@ export default function SettingsPage() {
   const handleEditUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+    setEditUserError(null);
 
     setSubmittingEdit(true);
     try {
@@ -398,15 +406,18 @@ export default function SettingsPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to update user");
+        const errorMsg = data.error || "Failed to update user";
+        setEditUserError(errorMsg);
+        return;
       }
 
       setSuccessBanner(`User ${data.user.name} updated successfully.`);
       setShowEditModal(false);
+      setEditUserError(null);
       setEditingUser(null);
       fetchUsers();
     } catch (err: any) {
-      setErrorBanner(err.message || "Error updating user");
+      setEditUserError(err.message || "Error updating user");
     } finally {
       setSubmittingEdit(false);
     }
@@ -814,7 +825,10 @@ export default function SettingsPage() {
                   </div>
 
                   <button
-                    onClick={() => setShowAddModal(true)}
+                    onClick={() => {
+                      setAddUserError(null);
+                      setShowAddModal(true);
+                    }}
                     className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-[#1D4ED8] hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition"
                   >
                     <UserPlus className="h-4 w-4" />
@@ -1530,19 +1544,29 @@ export default function SettingsPage() {
       {/* ADD USER MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4 text-[#1D4ED8]" />
                 <h3 className="text-sm font-bold text-slate-900">Add Authorized User</h3>
               </div>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setAddUserError(null);
+                  setShowAddModal(false);
+                }}
                 className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {addUserError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 shadow-sm animate-in fade-in">
+                <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 font-medium leading-relaxed">{addUserError}</div>
+              </div>
+            )}
 
             <form onSubmit={handleAddUserSubmit} className="space-y-3.5">
               <div>
@@ -1585,9 +1609,31 @@ export default function SettingsPage() {
                   onChange={(e) => setAddUserForm({ ...addUserForm, password: e.target.value })}
                   className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]"
                 />
-                <span className="text-[10px] text-slate-400">
-                  Password is hashed server-side with bcrypt (12 rounds).
-                </span>
+                
+                {/* Real-time Password Complexity Helper */}
+                <div className="mt-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] space-y-1">
+                  <span className="font-semibold text-slate-600 block mb-0.5">Password Requirements:</span>
+                  <div className={`flex items-center gap-1.5 ${addUserForm.password.length >= 8 ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+                    <span>{addUserForm.password.length >= 8 ? '✓' : '•'}</span>
+                    <span>At least 8 characters</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${/[A-Z]/.test(addUserForm.password) ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+                    <span>{/[A-Z]/.test(addUserForm.password) ? '✓' : '•'}</span>
+                    <span>At least one uppercase letter (A-Z)</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${/[a-z]/.test(addUserForm.password) ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+                    <span>{/[a-z]/.test(addUserForm.password) ? '✓' : '•'}</span>
+                    <span>At least one lowercase letter (a-z)</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${/[0-9]/.test(addUserForm.password) ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+                    <span>{/[0-9]/.test(addUserForm.password) ? '✓' : '•'}</span>
+                    <span>At least one number (0-9)</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(addUserForm.password) ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+                    <span>{/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(addUserForm.password) ? '✓' : '•'}</span>
+                    <span>At least one special symbol (!@#$%^&*...)</span>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1658,7 +1704,10 @@ export default function SettingsPage() {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setAddUserError(null);
+                    setShowAddModal(false);
+                  }}
                   className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
@@ -1679,19 +1728,29 @@ export default function SettingsPage() {
       {/* EDIT USER MODAL */}
       {showEditModal && editingUser && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
                 <Edit2 className="h-4 w-4 text-[#1D4ED8]" />
                 <h3 className="text-sm font-bold text-slate-900">Edit User Profile</h3>
               </div>
               <button
-                onClick={() => setShowEditModal(false)}
+                onClick={() => {
+                  setEditUserError(null);
+                  setShowEditModal(false);
+                }}
                 className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {editUserError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 shadow-sm animate-in fade-in">
+                <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 font-medium leading-relaxed">{editUserError}</div>
+              </div>
+            )}
 
             <form onSubmit={handleEditUserSubmit} className="space-y-3.5">
               <div>

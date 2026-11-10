@@ -142,9 +142,27 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, email, password, role, employeeId, studentId, status } = body;
 
-    if (!name || !email || !password || !role) {
+    const missingFields: string[] = [];
+    if (!name?.trim()) missingFields.push("Full Name");
+    if (!email?.trim()) missingFields.push("Institutional Email");
+    if (!password) missingFields.push("Password");
+    if (!role) missingFields.push("Role");
+
+    if (missingFields.length > 0) {
+      const msg = `Missing required fields: ${missingFields.join(", ")}`;
+      console.warn(`[POST /api/users 400]: ${msg}`);
       return NextResponse.json(
-        { error: "Name, email, password, and role are required." },
+        { error: msg },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(email.trim())) {
+      const msg = "Please provide a valid institutional email address (e.g. name@institution.edu).";
+      console.warn(`[POST /api/users 400]: ${msg}`);
+      return NextResponse.json(
+        { error: msg },
         { status: 400 }
       );
     }
@@ -156,24 +174,30 @@ export async function POST(req: NextRequest) {
       "VIEWER",
     ];
     if (!validRoles.includes(role)) {
+      const msg = `Invalid role '${role}'. Must be one of: ${validRoles.join(", ")}`;
+      console.warn(`[POST /api/users 400]: ${msg}`);
       return NextResponse.json(
-        { error: `Invalid role. Must be one of: ${validRoles.join(", ")}` },
+        { error: msg },
         { status: 400 }
       );
     }
 
-    if (!employeeId && !studentId) {
+    if (!employeeId?.trim() && !studentId?.trim()) {
+      const msg = "Either Employee ID or Student ID is required.";
+      console.warn(`[POST /api/users 400]: ${msg}`);
       return NextResponse.json(
-        { error: "Either Employee ID or Student ID is required." },
+        { error: msg },
         { status: 400 }
       );
     }
 
     const pwdCheck = validatePasswordStrength(password);
     if (!pwdCheck.valid) {
+      const msg = pwdCheck.errors.join("; ");
+      console.warn(`[POST /api/users 400 Password Failed]: ${msg}`);
       return NextResponse.json(
         {
-          error: "Password does not meet institutional requirements",
+          error: `Password requirements not met: ${msg}`,
           details: pwdCheck.errors,
         },
         { status: 400 }
@@ -185,8 +209,10 @@ export async function POST(req: NextRequest) {
     const cleanEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: cleanEmail });
     if (existing) {
+      const msg = "A user with this institutional email already exists.";
+      console.warn(`[POST /api/users 409]: ${msg}`);
       return NextResponse.json(
-        { error: "A user with this institutional email already exists." },
+        { error: msg },
         { status: 409 }
       );
     }
@@ -232,8 +258,15 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("POST /api/users error:", error);
+    if (error?.name === "ValidationError") {
+      const messages = Object.values(error.errors || {}).map((e: any) => e.message);
+      return NextResponse.json(
+        { error: messages.join(", ") || "Validation failed" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
   }
 }
