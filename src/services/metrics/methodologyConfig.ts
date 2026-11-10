@@ -1,0 +1,252 @@
+import { IMetricDefinitionConfig } from "@/models/MethodologyVersion";
+
+export const NIRF_ENGINEERING_2025_VERSION = "NIRF_ENGINEERING_2025";
+
+export interface ParameterConfig {
+  parameter: "TLR" | "RP" | "GO" | "OI" | "PR";
+  name: string;
+  weight: number;
+  maxMarks: number;
+  subMetricCodes: string[];
+}
+
+export const PARAMETERS_CONFIG: Record<string, ParameterConfig> = {
+  TLR: {
+    parameter: "TLR",
+    name: "Teaching, Learning & Resources",
+    weight: 0.30,
+    maxMarks: 100,
+    subMetricCodes: ["SS", "FSR", "FQE", "FRU"],
+  },
+  RP: {
+    parameter: "RP",
+    name: "Research and Professional Practice",
+    weight: 0.30,
+    maxMarks: 100,
+    subMetricCodes: ["PU", "QP", "IPR", "FPPP"],
+  },
+  GO: {
+    parameter: "GO",
+    name: "Graduation Outcomes",
+    weight: 0.20,
+    maxMarks: 100,
+    subMetricCodes: ["GPH", "GUE", "GMS", "GPHD"],
+  },
+  OI: {
+    parameter: "OI",
+    name: "Outreach and Inclusivity",
+    weight: 0.10,
+    maxMarks: 100,
+    subMetricCodes: ["RD", "WD", "ESCS", "PCS"],
+  },
+  PR: {
+    parameter: "PR",
+    name: "Perception",
+    weight: 0.10,
+    maxMarks: 100,
+    subMetricCodes: ["PR"],
+  },
+};
+
+export const METRIC_DEFINITIONS: IMetricDefinitionConfig[] = [
+  // TLR Sub-metrics
+  {
+    metricCode: "SS",
+    parameter: "TLR",
+    name: "Student Strength including Doctoral Students",
+    requiredInputs: ["approvedIntake", "enrolledStudents", "phdEnrolled"],
+    formula: "SS = f(NT, NE) * 15 + f(NP) * 5",
+    normalisationRule: "min(15, 15 * (NE / NT)) + min(5, 5 * (NP / max(1, NP_target)))",
+    maxMarks: 20,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Approved student enrollment records and sanctioned intake",
+  },
+  {
+    metricCode: "FSR",
+    parameter: "TLR",
+    name: "Faculty-Student Ratio with Emphasis on Permanent Faculty",
+    requiredInputs: ["facultyCount", "totalStudents", "phdEnrolled"],
+    formula: "FSR = 30 × [15 × (F / N)]; N = NT + NP; If F/N < 1:50, FSR = 0",
+    normalisationRule: "N = enrolled UG/PG students (NT) + doctoral students (NP); ratio < 0.02 → 0; else min(30, 30 × 15 × F/N)",
+    maxMarks: 30,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Full-time regular faculty with PhD/PG who taught in both semesters",
+  },
+  {
+    metricCode: "FQE",
+    parameter: "TLR",
+    name: "Faculty with PhD (or Equivalent) and Experience",
+    requiredInputs: ["phdFacultyCount", "facultyCount", "expUpTo8", "exp8To15", "expAbove15"],
+    formula: "FQE = FQ + FE; FQ = 10 * (FRA / 95); FE = 3*min(3*F1,1) + 3*min(3*F2,1) + 4*min(3*F3,1)",
+    normalisationRule: "FQ capped at 10 for FRA >= 95%; FE full marks for 1:1:1 experience distribution",
+    maxMarks: 20,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Verified faculty qualifications and experience breakdown",
+  },
+  {
+    metricCode: "FRU",
+    parameter: "TLR",
+    name: "Financial Resources and their Utilisation",
+    requiredInputs: ["capitalExpenditurePerStudent", "operationalExpenditurePerStudent"],
+    formula: "FRU = 7.5 * f(BC) + 22.5 * f(BO)",
+    normalisationRule: "Linear normalisation based on 3-year average capital (BC) and operational (BO) expenditure per student",
+    maxMarks: 30,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "3-year audited financial capital and operational expenditure records",
+  },
+
+  // RP Sub-metrics
+  {
+    metricCode: "PU",
+    parameter: "RP",
+    name: "Combined Metric for Publications",
+    requiredInputs: ["weightedPublications", "retractedPublications", "facultyRequired"],
+    formula: "PU = 35 * f(P / FRQ) - 5 * f(Pret)",
+    normalisationRule: "Publications per faculty normalized against benchmark, penalized by retractions. Requires third-party source.",
+    maxMarks: 35,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Third-party indexed publications (Scopus/Web of Science)",
+    isBibliometricOrThirdParty: true,
+  },
+  {
+    metricCode: "QP",
+    parameter: "RP",
+    name: "Combined Metric for Quality of Publications",
+    requiredInputs: ["citationCount", "top25PercentileCitations", "retractedCitations", "facultyRequired"],
+    formula: "QP = {20 * f(CC / FRQ) + 20 * f(TOP25P / P)} - 5 * f(Cret)",
+    normalisationRule: "Citations per faculty and top 25 percentile citations. Mandatory third-party bibliometric source.",
+    maxMarks: 40,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Scopus/Web of Science citation metrics and top 25 percentile indices",
+    isBibliometricOrThirdParty: true,
+  },
+  {
+    metricCode: "IPR",
+    parameter: "RP",
+    name: "IPR and Patents: Published and Granted",
+    requiredInputs: ["patentsGranted3Y", "patentsPublished3Y"],
+    formula: "IPR = IPG + IPP; IPG = 10 * f(PG); IPP = 5 * f(PP)",
+    normalisationRule: "10 marks for patents granted over 3 years + 5 marks for patents published over 3 years",
+    maxMarks: 15,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Patent office publication and grant documentation",
+  },
+  {
+    metricCode: "FPPP",
+    parameter: "RP",
+    name: "Footprint of Projects and Professional Practice",
+    requiredInputs: ["researchFundingPerFaculty", "consultancyPerFaculty"],
+    formula: "FPPP = FPR + FPC; FPR = 7.5 * f(RF); FPC = 2.5 * f(CF)",
+    normalisationRule: "7.5 marks for research funding per faculty + 2.5 marks for consultancy amount per faculty",
+    maxMarks: 10,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Sponsored research grants and consultancy contracts over 3 years",
+  },
+
+  // GO Sub-metrics
+  {
+    metricCode: "GPH",
+    parameter: "GO",
+    name: "Combined Metric for Placement and Higher Studies",
+    requiredInputs: ["placementPercentage", "higherStudiesPercentage"],
+    formula: "GPH = 40 * (Np / 100 + Nhs / 100)",
+    normalisationRule: "Linear score up to 40 marks based on combined placement and higher studies proportion",
+    maxMarks: 40,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "3-year graduating cohort verified placement and higher education admissions",
+  },
+  {
+    metricCode: "GUE",
+    parameter: "GO",
+    name: "Metric for University Examinations",
+    requiredInputs: ["graduationInStipulatedTimePercentage"],
+    formula: "GUE = 15 * min[(Ng / 80), 1]",
+    normalisationRule: "Full 15 marks if 80% or more students pass in stipulated time",
+    maxMarks: 15,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "University examination clearance in stipulated 2-year duration",
+  },
+  {
+    metricCode: "GMS",
+    parameter: "GO",
+    name: "Median Salary of Graduated Students",
+    requiredInputs: ["medianSalary"],
+    formula: "GMS = 25 * f(MS)",
+    normalisationRule: "Score proportional to median annual salary benchmarked against engineering/technology median targets",
+    maxMarks: 25,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Audited placement salary data over 3 years",
+  },
+  {
+    metricCode: "GPHD",
+    parameter: "GO",
+    name: "Metric for Number of Ph.D. Students Graduated",
+    requiredInputs: ["phdGraduated3YAvg"],
+    formula: "GPHD = 20 * f(Nphd)",
+    normalisationRule: "Average PhDs graduated over previous 3 years. For standalone MCA: marked per verified records or 0",
+    maxMarks: 20,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Annual convocation/degree award register for doctoral graduates",
+  },
+
+  // OI Sub-metrics
+  {
+    metricCode: "RD",
+    parameter: "OI",
+    name: "Percentage of Students from Other States and Countries (Region Diversity)",
+    requiredInputs: ["fractionOtherStates", "fractionOtherCountries"],
+    formula: "RD = 25 * fractionOtherStates + 5 * fractionOtherCountries",
+    normalisationRule: "25 marks for other states proportion + 5 marks for international students",
+    maxMarks: 30,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Domicile classification (Home State / Other State / International) of all enrolled students",
+  },
+  {
+    metricCode: "WD",
+    parameter: "OI",
+    name: "Percentage of Women (Women Diversity)",
+    requiredInputs: ["womenStudentsPercentage", "womenFacultyPercentage"],
+    formula: "WD = 15 * min(1, NWS / 50) + 15 * min(1, NWF / 20)",
+    normalisationRule: "15 marks for 50% women students + 15 marks for 20% women faculty",
+    maxMarks: 30,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Gender demographic records for enrolled students and appointed faculty",
+  },
+  {
+    metricCode: "ESCS",
+    parameter: "OI",
+    name: "Economically and Socially Challenged Students",
+    requiredInputs: ["feeReimbursementPercentage"],
+    formula: "ESCS = 20 * f(Nesc)",
+    normalisationRule: "20 marks based on percentage of students receiving full tuition fee reimbursement/scholarships",
+    maxMarks: 20,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Institutional or government fee waiver disbursement documentation",
+  },
+  {
+    metricCode: "PCS",
+    parameter: "OI",
+    name: "Facilities for Physically Challenged Students",
+    requiredInputs: ["verifiedFacilitiesCount", "totalRequiredFacilities"],
+    formula: "PCS = 20 marks if full facilities provided; otherwise in proportion to verified facilities",
+    normalisationRule: "Proportional to verified physical infrastructure (ramps, lifts, special toilets, tactile paths)",
+    maxMarks: 20,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Campus accessibility audit and verified facility documentation",
+  },
+
+  // PR Sub-metric
+  {
+    metricCode: "PR",
+    parameter: "PR",
+    name: "Peer Perception: Employers & Academic Peer",
+    requiredInputs: ["officialPerceptionScore"],
+    formula: "PR = official peer perception survey score; if unavailable, PR = NOT_COMPUTABLE",
+    normalisationRule: "Official survey score out of 100 only. Never estimated or imputed.",
+    maxMarks: 100,
+    applicableProgrammes: ["MCA"],
+    minimumDataRequirements: "Official NIRF Employer and Academic Peer Perception survey result",
+    isBibliometricOrThirdParty: true,
+  },
+];
+

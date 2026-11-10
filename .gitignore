@@ -1,0 +1,58 @@
+# Dependencies
+/node_modules/
+/.pnp/
+.pnp.js
+
+# Next.js Build Outputs
+/.next/
+/out/
+/build/
+/dist/
+
+# Environment and Secret Files
+.env
+.env*.local
+.env.production
+.env.development
+*.pem
+
+# Testing and Test Suites (Tests not needed for hosting)
+/tests/
+/coverage/
+/test-results/
+playwright.config.ts
+
+# Markdown Files (Keep only detailed README.md tracked)
+PROJECT_DOCUMENTATION.md
+USER_GUIDE.md
+GSD-STYLE.md
+PROJECT_RULES.md
+/adapters/
+
+# Local Database & File Uploads
+/.mongodb_data/
+/uploads/
+/public/uploads/
+
+# Internal Agent & Workspace Artifacts
+/.agent/
+/.agents/
+/.gemini/
+/.gsd/
+/design-reference/
+/scripts/
+model_capabilities.yaml
+VERSION
+
+# TypeScript Cache
+*.tsbuildinfo
+next-env.d.ts
+
+# OS & Logs
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
