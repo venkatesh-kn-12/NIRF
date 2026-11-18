@@ -18,6 +18,7 @@ import {
   AlertCircle,
   LogOut,
   Building2,
+  Coins,
   Menu,
   X,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Department Dashboard", href: "/dashboard", icon: <LayoutDashboard size={18} /> },
   { label: "Student Data Repository", href: "/students", icon: <GraduationCap size={18} /> },
   { label: "Faculty Data Repository", href: "/faculty", icon: <Users size={18} /> },
+  { label: "Financial Resources (FRU)", href: "/finance", icon: <Coins size={18} /> },
   { label: "Upload & Extract Data", href: "/uploads", icon: <FileText size={18} /> },
   { label: "Verification Queue", href: "/verification", icon: <ShieldCheck size={18} /> },
   { label: "Metrics & Calculations", href: "/metrics", icon: <Calculator size={18} /> },

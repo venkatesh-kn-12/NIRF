@@ -6,270 +6,183 @@ This portal computes official accreditation scores strictly following the **NIRF
 
 ---
 
+## ⚡ Direct Testing Mode (Verification on Hold)
+
+> **Note for Department Testers**: To allow rapid internal verification of formulas, routing, and data entry, **the reviewer verification approval bottleneck has been placed on hold**.
+>
+> Any student, faculty, or financial expenditure entered by **Faculty** or **Admin** is **immediately active and directly computed** in the NIRF calculation engine at `/metrics` without waiting for manual sign-off.
+
+---
+
 ## 1. How to Connect to the Portal
 
 1. **Open the shared URL** in Google Chrome, Microsoft Edge, or Firefox:
-   * **Tunnel / Forwarded Link**: `https://<forwarded-link>.devtunnels.ms` (or `http://localhost:3000` if on local machine).
+   * **Tunnel Link**: `https://<forwarded-link>.devtunnels.ms` or `https://<tunnel>.trycloudflare.com` (or `http://localhost:3000` locally).
 2. If prompted by Microsoft Dev Tunnels with a security screen asking *"You are connecting to a developer tunnel. Do you want to continue?"*, click **"Continue"**.
-3. You will see the **MCA NIRF Assist Sign In** page.
+3. You will see the **MCA NIRF Assist Sign In** page fully styled with Tailwind CSS.
 
 ---
 
 ## 2. Test Accounts & Roles
 
-The system uses strict **Role-Based Access Control (RBAC)**. To thoroughly test the complete workflow, you should test with these **3 distinct roles**:
+The system uses **Role-Based Access Control (RBAC)**. You can test with either role:
 
-```
-+---------------------------------------------------------------------------------------------------------+
-|                                        TEST CREDENTIALS TABLE                                           |
-+----------------------+-----------------------------+--------------------+-------------------------------+
-| Role                 | Institutional Email         | Password           | What This Role Is Used For    |
-+----------------------+-----------------------------+--------------------+-------------------------------+
-| DEPARTMENT_ADMIN     | admin.mca@dsatm.edu         | Admin@2026!        | Setup, settings, users, &     |
-|                      |                             |                    | executing NIRF calculation    |
-+----------------------+-----------------------------+--------------------+-------------------------------+
-| FACULTY_CONTRIBUTOR  | contributor.mca@dsatm.edu   | Faculty@2026!      | Entering raw records &        |
-|                      |                             |                    | uploading evidence PDFs       |
-+----------------------+-----------------------------+--------------------+-------------------------------+
-| REVIEWER             | reviewer.mca@dsatm.edu      | Reviewer@2026!     | Reviewing side-by-side proofs |
-|                      |                             |                    | & approving verification cases|
-+----------------------+-----------------------------+--------------------+-------------------------------+
-```
+| Role | Institutional Email | Password | What This Role Can Do |
+| :--- | :--- | :--- | :--- |
+| **DEPARTMENT_ADMIN** | `admin.mca@dsatm.edu` | `Admin@2026!` | Full access: Settings, Intake Capacity, Users, Data Entry, & Running NIRF Calculations |
+| **FACULTY_CONTRIBUTOR** | `contributor.mca@dsatm.edu` | `Faculty@2026!` | Data Entry: Students, Faculty, Expenditures, & Running NIRF Calculations |
 
-*(Note: If the database was recently cleared, the Admin account can be created at `/setup-admin`, and subsequent users can be added in `/settings` under the "Users" tab).*
+*(Note: If testing on a freshly reset database, set up the initial Admin at `/setup-admin`, and manage accounts in `/settings` under the "Users" tab).*
 
 ---
 
-## 3. The 5-Phase End-to-End Testing Walkthrough
+## 3. Core Focus: Teaching, Learning & Resources (TLR — 100 Marks)
 
-Follow these 5 phases in order to verify that all routes, security controls, evidence workflows, and mathematical formulas are functioning properly.
+The primary focus is testing the 4 mathematical components of **TLR (Teaching, Learning & Resources)**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                            TLR METRICS BREAKDOWN (MAX 100 MARKS)                             │
+├───────┬────────────────────────────────────────┬───────┬────────────────────────────────────┤
+│ Code  │ Component Name                         │ Marks │ Main Required Data Inputs          │
+├───────┼────────────────────────────────────────┼───────┼────────────────────────────────────┤
+│ SS    │ Student Strength & Doctoral Enrolment  │  20   │ Sanctioned intake, enrolled PG &   │
+│       │                                        │       │ Ph.D. students                     │
+├───────┼────────────────────────────────────────┼───────┼────────────────────────────────────┤
+│ FSR   │ Faculty-Student Ratio                  │  30   │ Full-time regular faculty count,   │
+│       │                                        │       │ total students (N = NT + NP)       │
+├───────┼────────────────────────────────────────┼───────┼────────────────────────────────────┤
+│ FQE   │ Faculty Qualification & Experience     │  20   │ Ph.D. faculty count, cadre         │
+│       │                                        │       │ experience distribution (F1,F2,F3) │
+├───────┼────────────────────────────────────────┼───────┼────────────────────────────────────┤
+│ FRU   │ Financial Resources & Utilisation      │  30   │ 3-year Capital (BC) & Operational  │
+│       │                                        │       │ (BO) expenditure per student       │
+└───────┴────────────────────────────────────────┴───────┴────────────────────────────────────┘
+```
+
+---
+
+## 4. Step-by-Step TLR Testing Walkthrough
+
+Follow these 4 simple steps to enter data across all components and verify calculations:
 
 ```
    ┌────────────────────────────────────────────────────────────────────────┐
-   │ PHASE 1: Sign in as Admin & Verify Routing & Settings (/settings)      │
+   │ STEP 1: Add Students (/students)                                       │
+   │         • Enter MCA students & optional Ph.D. students                 │
+   │         • Tests SS (Student Strength) & denominator for FSR, FRU       │
    └───────────────────────────────────┬────────────────────────────────────┘
                                        │
                                        ▼
    ┌────────────────────────────────────────────────────────────────────────┐
-   │ PHASE 2: Sign in as Contributor & Enter Department Data (/students,    │
-   │          /faculty, /uploads)                                           │
+   │ STEP 2: Add Faculty (/faculty)                                         │
+   │         • Enter Permanent / Contract faculty with Ph.D. status & years │
+   │         • Tests FSR (Faculty-Student Ratio) & FQE (Experience)         │
    └───────────────────────────────────┬────────────────────────────────────┘
                                        │
                                        ▼
    ┌────────────────────────────────────────────────────────────────────────┐
-   │ PHASE 3: Sign in as Reviewer & Inspect Verification Queue              │
-   │          (/verification - Compare claimed data with PDF proof & approve)│
+   │ STEP 3: Add Financial Resources (/finance)                             │
+   │         • Enter 3-year Capital (Labs/Library) & Operational (Salaries) │
+   │         • Tests FRU (Financial Resources and Utilisation)              │
    └───────────────────────────────────┬────────────────────────────────────┘
                                        │
                                        ▼
    ┌────────────────────────────────────────────────────────────────────────┐
-   │ PHASE 4: Sign in as Admin & Execute NIRF Calculation (/metrics)        │
-   │          (Inspect Scorecard: TLR, RP, GO, OI, PR & math traces)         │
-   └───────────────────────────────────┬────────────────────────────────────┘
-                                       │
-                                       ▼
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │ PHASE 5: Export Official Reports (/reports)                            │
-   │          (Download Excel DCF Workbook, PDF Summary, and CSV Audit Log) │
+   │ STEP 4: Run Metric Calculation (/metrics)                              │
+   │         • Click "Run Calculation"                                      │
+   │         • Inspect the score card, formula steps & mathematical traces  │
    └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### PHASE 1: System Navigation & Access Control Check
-
-**Goal:** Confirm navigation works and security rules are enforced.
-
-1. **Sign in as `DEPARTMENT_ADMIN`**:
-   * Navigate to `/login` and sign in with `admin.mca@dsatm.edu` / `Admin@2026!`.
-2. **Verify Navigation**:
-   * Click each item in the left sidebar to confirm routing:
-     * **Dashboard** (`/dashboard`): Check KPI summary cards and radar chart.
-     * **Students** (`/students`): Student intake and demographics roster.
-     * **Faculty** (`/faculty`): Faculty cadre and qualification roster.
-     * **Uploads** (`/uploads`): Evidence document repository and AI extraction studio.
-     * **Verification Queue** (`/verification`): Case review desk.
-     * **Metrics & Calculations** (`/metrics`): Deterministic formula engine.
-     * **Reports & DCF Export** (`/reports`): Official export downloads.
-     * **Settings** (`/settings`): Department settings, user management, and integrations.
-     * **Audit Trail** (`/audit`): Immutable event logs.
-3. **Verify Settings Tabs (`/settings`)**:
-   * **Users Tab**: Check live user counts (`Total Users`, `Active Accounts`, `Pending Invites`). Try searching and filtering by role.
-   * **Methodology Tab**: Verify official read-only parameter weights:
-     * TLR = 30%, RP = 30%, GO = 20%, OI = 10%, PR = 10%.
-   * **Department Tab**: Check institutional settings (Department: MCA, Intake: 120 seats/yr, Home State: Karnataka).
-   * **Integrations Tab**: Click **"Test connection heartbeat"** and confirm MongoDB latency is reported.
-4. **Test Security (Sign in as Contributor)**:
-   * Log out, then log in as `contributor.mca@dsatm.edu`.
-   * Try visiting `http://<link>/settings`.
-   * **Expected Result**: System blocks access with **403 Forbidden** (proving security).
+### Step 1: Student Data Repository (`/students`)
+* **Goal**: Provide data for **SS (20 Marks)** and student denominators.
+* **How to Test**:
+  1. Click **Student Data Repository** in the left sidebar.
+  2. Click **+ Add Student**.
+  3. Fill out the student form:
+     * **Programme**: Select `MCA` (or `Ph.D. / Doctoral` to test doctoral enrolment).
+     * **Name**: e.g., `Aakash Verma`
+     * **Student ID / PRN**: e.g., `1DS23MC001`
+     * **Batch**: `2023-2025`, **Admission Year**: `2023`, **Semester**: `3`
+     * **Domicile**: `Home State` (or `Other State` / `International` to test OI-RD).
+     * **Gender**: Select Male or Female.
+  4. Click **Save Student Record**.
+  5. The student record will immediately display with an **Active** badge.
 
 ---
 
-### PHASE 2: Data Entry & Evidence Upload (As Contributor)
-
-**Goal:** Input student and faculty records and attach proof documents.
-
-Log in as **`FACULTY_CONTRIBUTOR`** (`contributor.mca@dsatm.edu`).
-
-#### Task 2.1: Add Student Records (`/students`)
-1. Click **Students** in the sidebar.
-2. Click **"Add Student"** and enter sample students:
-
-| Student Name | PRN / USN | Batch | Domicile State | Domicile Type | Gender | Category |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Rahul Sharma** | `1DT24MC001` | 2024–26 | Karnataka | `HOME_STATE` | `MALE` | `OBC` |
-| **Priya Nair** | `1DT24MC002` | 2024–26 | Kerala | `OTHER_STATE` | `FEMALE` | `OPEN` |
-| **Aarav Patel** | `1DT24MC003` | 2024–26 | Gujarat | `OTHER_STATE` | `MALE` | `OPEN` |
-| **Fatima Zahra** | `1DT24MC004` | 2024–26 | International | `INTERNATIONAL` | `FEMALE` | `OPEN` |
-
-3. Click **"Save Student"**. The records appear with status `PENDING_VERIFICATION`.
-
----
-
-#### Task 2.2: Add Faculty Records (`/faculty`)
-1. Click **Faculty** in the sidebar.
-2. Click **"Add Faculty"** and enter sample faculty:
-
-| Faculty Name | Email | Designation | Highest Qual. | PhD Status | Exp. Years | Type |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Dr. Rajesh Kumar** | `r.kumar@dsatm.edu` | Professor & HOD | Ph.D. in CS | `AWARDED` | 18 | `PERMANENT` |
-| **Dr. Sunita Rao** | `s.rao@dsatm.edu` | Associate Prof | Ph.D. in MCA | `AWARDED` | 11 | `PERMANENT` |
-| **Prof. Alok Verma** | `a.verma@dsatm.edu` | Assistant Prof | M.Tech in CS | `PURSUING` | 6 | `PERMANENT` |
-| **Dr. Meenakshi S.** | `m.sundaram@dsatm.edu`| Assistant Prof | Ph.D. in IT | `AWARDED` | 7 | `PERMANENT` |
-
-3. Click **"Save Faculty"**. The records will be queued for review.
+### Step 2: Faculty Data Repository (`/faculty`)
+* **Goal**: Provide data for **FSR (30 Marks)** and **FQE (20 Marks)**.
+* **How to Test**:
+  1. Click **Faculty Data Repository** in the left sidebar.
+  2. Click **+ Add Faculty**.
+  3. Fill out the faculty form:
+     * **Name**: e.g., `Dr. Ramesh Kumar`
+     * **Faculty ID**: `FAC001`
+     * **Designation**: `Associate Professor`
+     * **Employment Type**: `PERMANENT` (Only permanent & contract count toward regular faculty).
+     * **Highest Qualification**: `Ph.D.`
+     * **Ph.D. Status**: `AWARDED`
+     * **Experience (Years)**: Enter years of experience:
+       * $\le 8$ years: Counts towards $F_1$
+       * $8 - 15$ years: Counts towards $F_2$
+       * $> 15$ years: Counts towards $F_3$
+  4. Click **Save Faculty Record**.
+  5. The record is created and active immediately.
 
 ---
 
-#### Task 2.3: Upload Evidence Documents (`/uploads`)
-1. Click **Uploads** in the sidebar.
-2. Under **"Upload & Run AI Ingestion"**:
-   * Select a PDF file from your computer (any sample PDF or document).
-   * Pick **Document Taxonomy**:
-     * `Faculty`: Faculty List & Service Registers (TLR 1.2)
-     * `Student`: Student Intake & Enrolment Register (SS / TLR)
-     * `FinanceRecord`: Financial Audited Balance Statements (FRU)
-     * `Publication`: Scopus / WoS Extracts (RP 2.1)
-     * `PlacementRecord`: Placement & Higher Studies (GPHE)
-     * `OutreachRecord`: Regional & Gender Diversity (OI)
-   * Click **"Upload & Run AI Ingestion"**.
-3. The file is uploaded, an SHA-256 checksum is computed, and an automated verification case is opened in the queue!
+### Step 3: Financial Resources & Utilisation (`/finance`)
+* **Goal**: Provide data for **FRU (30 Marks)**.
+* **How to Test**:
+  1. Click **Financial Resources (FRU)** in the left sidebar (`/finance`).
+  2. Click **+ Add Expenditure**.
+  3. Enter 3 consecutive years of audited expenditures:
+     * **Record 1 (Capital)**:
+       * Year: `2024-25`
+       * Category: `Capital Exp.`
+       * Head: `Laboratory Equipment & Software Licenses`
+       * Amount: `₹ 2,400,000`
+       * Purpose: `New AI/Cloud Computing Lab setup`
+     * **Record 2 (Operational)**:
+       * Year: `2024-25`
+       * Category: `Operational Exp.`
+       * Head: `Faculty & Academic Staff Salaries`
+       * Amount: `₹ 7,500,000`
+       * Purpose: `Annual faculty and support staff salaries`
+     * *(Optional)*: Add records for `2023-24` and `2022-23` to test 3-year rolling averages.
+  4. Click **Save Record**.
+  5. Check the top summary KPI cards updating Capital, Operational, and reporting years in real time.
 
 ---
 
-### PHASE 3: The Verification Desk (As Reviewer)
-
-**Goal:** Review claimed numbers against proof documents and approve records so they enter the active calculation pool.
-
-1. **Log in as `REVIEWER`** (`reviewer.mca@dsatm.edu` / `Reviewer@2026!`).
-2. Navigate to **Verification** (`/verification`).
-3. You will see the queue of pending cases (`Student`, `Faculty`, `FinanceRecord`, etc.).
-4. Click **"Review Case"** on a case:
-   * **Left Side**: Review the claimed data (Student name, USN, Faculty Experience, Financial Rupees).
-   * **Right Side**: Built-in PDF viewer displaying the uploaded document.
-5. **Approve the Record**:
-   * Enter a review note: *"Verified against institutional registry."*
-   * Click **"Approve & Verify"**.
-   * The status switches to `APPROVED` and is locked with a cryptographic audit signature!
-6. *(Optional Test)*: On another case, test clicking **"Request Correction"** or **"Reject"** with a reason to confirm the rejection flow works.
-
----
-
-### PHASE 4: Execute Deterministic NIRF Calculation (As Admin)
-
-**Goal:** Trigger the mathematical formula engine and inspect calculated scores.
-
-1. **Log in as `DEPARTMENT_ADMIN`** (`admin.mca@dsatm.edu` / `Admin@2026!`).
-2. Navigate to **Metrics** (`/metrics`).
-3. Click the blue button: **"Execute NIRF 2025 Calculation Run"**.
-4. The calculation engine executes across all approved records and displays the scorecard:
-
-```
-========================================================================================
-NIRF 2025 DETERMINISTIC SCORECARD (MCA DEPARTMENT)
-========================================================================================
-Parameter                                 Marks (out of 100)    Weight    Weighted Score
-----------------------------------------------------------------------------------------
-TLR: Teaching, Learning & Resources             89.12           0.30          26.74
-RP:  Research & Professional Practice           79.50           0.30          23.85
-GO:  Graduation Outcomes                        78.50           0.20          15.70
-OI:  Outreach & Inclusivity                     70.00           0.10           7.00
-PR:  Peer Perception (Official Survey)          68.50           0.10           6.85
-----------------------------------------------------------------------------------------
-TOTAL NIRF COMPOSITE SCORE:                                                   73.14 / 100
-========================================================================================
-```
-
-5. **Inspect the Detailed Mathematical Traces**:
-   * Click on **TLR** to expand its sub-metrics:
-     * **SS**: Student Strength $= f(NT, NE) \times 15 + f(NP) \times 5$
-     * **FSR**: Faculty-Student Ratio $= 30 \times [15 \times (F / N)]$
-     * **FQE**: Faculty Qualification \& Experience $= \text{FQ}(10) + \text{FE}(10)$
-     * **FRU**: Financial Resources $= 7.5 \times f(BC) + 22.5 \times f(BO)$
-   * Click on **RP**, **GO**, **OI**, and **PR** to inspect their respective sub-metric breakdowns.
-   * If any data was omitted, observe that the sub-metric correctly shows `PENDING_INPUT` or `NOT_COMPUTABLE` without fabricating fake numbers.
+### Step 4: Metrics & Calculations (`/metrics`)
+* **Goal**: Compute official NIRF Engineering 2025 scores and inspect the exact mathematical trace.
+* **How to Test**:
+  1. Navigate to **Metrics & Calculations** (`/metrics`) in the sidebar.
+  2. Click the blue **"Run Calculation"** button in the top right.
+  3. The computation runs in seconds.
+  4. Expand the **Teaching, Learning & Resources (TLR)** accordion card:
+     * **SS Card (Max 20)**: Click to see formula trace:
+       $$\text{SS} = 15 \times \min(1.0, \text{NE} / \text{NT}) + 5 \times \min(1.0, \text{NP} / 10)$$
+     * **FSR Card (Max 30)**: Click to see ratio and multiplier:
+       $$\text{FSR} = 30 \times [15 \times (F / N)] \quad (\text{capped at 30})$$
+     * **FQE Card (Max 20)**: Click to see qualification ($FQ$) and experience balance ($FE$):
+       $$\text{FQE} = FQ + FE$$
+     * **FRU Card (Max 30)**: Click to see linear normalisation:
+       $$\text{FRU} = 7.5 \times f(BC) + 22.5 \times f(BO)$$
+       Where $f(BC) = \min(1.0, BC / 20000)$ and $f(BO) = \min(1.0, BO / 60000)$.
+  5. Verify that each step shows the exact calculation numbers and values derived from the data you entered!
 
 ---
 
-### PHASE 5: Report Generation & Official Export
-
-**Goal:** Export institutional accreditation deliverables.
-
-1. Navigate to **Reports** (`/reports`).
-2. Test downloading all three formats:
-   * **NIRF Data Capture Format (DCF) Excel Workbook (`.xlsx`)**: Generates the multi-sheet official spreadsheet.
-   * **Executive Summary PDF (`.pdf`)**: Generates a printable dossier with the institution header, radar chart, and approval signatures.
-   * **Complete Audit Trail (`.csv`)**: Exports timestamped logs of every action taken during this testing session.
-
----
-
-## 4. Complete Metric Input Reference Sheet
-
-Use this cheat sheet to verify the mathematical inputs for all 5 parameters:
-
-### 1. TLR (Teaching, Learning & Resources) — Max 100, Weight 0.30
-* **SS (Student Strength - 20 Marks)**: Approved Intake: `120/yr` (240 total capacity). Enrolled: `240`. Target achieved $\implies$ 15/15 + PhD factor.
-* **FSR (Faculty-Student Ratio - 30 Marks)**: Target is 1:15 ratio ($240 / 15 = 16$ faculty). 16 regular faculty $\implies$ **Full 30/30 marks**. Cutoff is $1:50$ (less than 5 faculty $\implies 0$).
-* **FQE (Qualifications & Experience - 20 Marks)**: PhD holders $\ge 95\% \implies$ 10/10. Experience balanced across $\le 8\text{ yrs}$, $8\text{–}15\text{ yrs}$, and $> 15\text{ yrs} \implies$ 10/10.
-* **FRU (Expenditures - 30 Marks)**: 3-year average annual Capital Expenditure ($BC$) and Operational Expenditure ($BO$) per student.
-
-### 2. RP (Research and Professional Practice) — Max 100, Weight 0.30
-* **PU (Publications - 35 Marks)**: Scopus/WoS peer-reviewed papers published in calendar years 2023, 2024, 2025.
-* **QP (Quality of Publications - 40 Marks)**: Citations count ($CC$) and Top 25% percentile journal publications ($TOP25P$).
-* **IPR (Patents - 15 Marks)**: Patents Granted ($10 \times f(PG)$) + Patents Published ($5 \times f(PP)$).
-* **FPPP (Projects - 10 Marks)**: Sponsored Research grants ($7.5 \times f(RF)$) + Consultancy earnings ($2.5 \times f(CF)$).
-
-### 3. GO (Graduation Outcomes) — Max 100, Weight 0.20
-* **GPH (Placement & Higher Studies - 40 Marks)**: $40 \times (N_p/100 + N_{hs}/100)$ over 3 graduating cohorts. (e.g. 82% placed + 8% higher studies $= 90\% \implies \mathbf{36.00 / 40}$).
-* **GUE (Examinations Pass Rate - 15 Marks)**: $15 \times \min(N_g / 80, 1)$. Full 15 marks if $\ge 80\%$ graduate in stipulated 2 years.
-* **GMS (Median Salary - 25 Marks)**: Audited median annual package (e.g. ₹6,50,000 CTC).
-* **GPHD (PhD Graduates - 20 Marks)**: Average doctoral graduates guided over 3 years.
-
-### 4. OI (Outreach and Inclusivity) — Max 100, Weight 0.10
-* **RD (Regional Diversity - 30 Marks)**: Other Indian states (25 marks) + International students (5 marks). Home State = Karnataka.
-* **WD (Women Diversity - 30 Marks)**: Women students ($15 \text{ marks at } 50\%$) + Women faculty ($15 \text{ marks at } 20\%$).
-* **ESCS (Fee Reimbursements - 20 Marks)**: Proportion of students receiving full tuition reimbursement/scholarships.
-* **PCS (Physically Challenged - 20 Marks)**: Full 20 marks when all 4 facilities are verified (Lifts, Ramps, Accessible Toilets, Tactile Paths).
-
-### 5. PR (Peer Perception) — Max 100, Weight 0.10
-* **Official Survey Score**: Entered only when official MoE/NIRF survey results are issued. Invariant: Remains `NOT_COMPUTABLE` without official data (never fabricated).
-
----
-
-## 5. Peer Testing Checklist
-
-Use this checklist to confirm everything is working properly:
-
-- [ ] **Sign in**: Successfully logged in at `/login`.
-- [ ] **RBAC Security**: Contributor cannot open `/settings` (HTTP 403 shown).
-- [ ] **Data Entry**: Successfully added student records in `/students`.
-- [ ] **Data Entry**: Successfully added faculty records in `/faculty`.
-- [ ] **Evidence Upload**: Uploaded a proof PDF in `/uploads`.
-- [ ] **Verification**: Reviewed the case side-by-side and approved it in `/verification`.
-- [ ] **Calculation**: Clicked "Execute NIRF 2025 Calculation Run" in `/metrics`.
-- [ ] **Scorecard**: Inspected TLR, RP, GO, OI, and PR cards and expanded formula traces.
-- [ ] **Export**: Successfully downloaded the official Excel DCF and PDF summary from `/reports`.
-- [ ] **Audit Trail**: Verified your actions appear in `/audit` with timestamps and email tags.
-
-Happy Testing! If you encounter any unexpected issues, check the terminal on the host laptop for live server logs.
+## 5. Other Useful Pages to Verify
+* **Department Dashboard (`/dashboard`)**: Displays the radar chart of NIRF parameters and quick status metrics.
+* **Department Settings (`/settings`)**:
+  * **Department Tab**: Modify **Sanctioned Intake** (e.g. change 120 to 180 and observe how SS and FSR recalculate).
+  * **Users Tab**: Create and invite new department users with password requirements.
+* **Audit Trail (`/audit`)**: Lists all creation, update, deletion, and calculation events with user email, timestamp, and IP address.
+* **Reports (`/reports`)**: Download the official Excel Data Capture Format (DCF) workbook.

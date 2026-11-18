@@ -87,6 +87,7 @@ export default function StudentsPage() {
     prn: "",
     name: "",
     email: "",
+    programme: "MCA",
     batch: "2023-2025",
     admissionYear: 2023,
     gender: "MALE" as "MALE" | "FEMALE" | "OTHER",
@@ -261,6 +262,7 @@ export default function StudentsPage() {
       prn: student.prn,
       name: student.name,
       email: student.email,
+      programme: student.programme || "MCA",
       batch: student.batch,
       admissionYear: student.admissionYear,
       gender: student.gender,
@@ -288,7 +290,7 @@ export default function StudentsPage() {
   const userRole = currentUser?.role;
   const canCreateOrEdit = userRole === "DEPARTMENT_ADMIN" || userRole === "FACULTY_CONTRIBUTOR";
   const canReview = userRole === "DEPARTMENT_ADMIN" || userRole === "REVIEWER";
-  const canDelete = userRole === "DEPARTMENT_ADMIN";
+  const canDelete = userRole === "DEPARTMENT_ADMIN" || userRole === "FACULTY_CONTRIBUTOR";
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -635,7 +637,19 @@ export default function StudentsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block font-semibold uppercase text-slate-700 mb-1">Programme</label>
+                  <select
+                    value={formData.programme}
+                    onChange={(e) => setFormData({ ...formData, programme: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#1D4ED8] bg-white text-sm"
+                  >
+                    <option value="MCA">MCA</option>
+                    <option value="PHD">Ph.D. / Doctoral</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block font-semibold uppercase text-slate-700 mb-1">Batch</label>
                   <input

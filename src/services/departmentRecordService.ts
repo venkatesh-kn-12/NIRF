@@ -189,7 +189,7 @@ export async function createRecord<T>(
   const newRecordData = {
     ...(parsed.data as Record<string, any>),
     department: "MCA", // Strict institutional constraint
-    status: "DRAFT",
+    status: "APPROVED", // Directly active for internal department testing without verification bottleneck
     createdBy: user._id,
     updatedBy: user._id,
     auditHistory: [
@@ -330,10 +330,10 @@ export async function deleteRecord<T>(
     throw new RecordServiceError("Invalid record ID", 400);
   }
 
-  // RBAC: Only DEPARTMENT_ADMIN can delete records
-  if (!hasRole(user.role, ["DEPARTMENT_ADMIN"])) {
+  // RBAC: DEPARTMENT_ADMIN and FACULTY_CONTRIBUTOR can delete records
+  if (!hasRole(user.role, ["DEPARTMENT_ADMIN", "FACULTY_CONTRIBUTOR"])) {
     throw new RecordServiceError(
-      "Forbidden. Only Department Administrators can permanently delete records.",
+      "Forbidden. Only Department Administrators and Contributors can delete records.",
       403
     );
   }

@@ -169,7 +169,7 @@ export default function MetricComputationPage() {
 
   /* ────── Trigger Recalculation ────── */
   const handleRunCalculation = async () => {
-    if (user?.role !== "DEPARTMENT_ADMIN") return;
+    if (user?.role !== "DEPARTMENT_ADMIN" && user?.role !== "FACULTY_CONTRIBUTOR") return;
     setCalculating(true);
     setActionMessage(null);
 
@@ -288,8 +288,8 @@ export default function MetricComputationPage() {
             </select>
           </div>
 
-          {/* Recalculate Button (Admins only) */}
-          {user.role === "DEPARTMENT_ADMIN" && (
+          {/* Recalculate Button (Admins & Faculty) */}
+          {(user.role === "DEPARTMENT_ADMIN" || user.role === "FACULTY_CONTRIBUTOR") && (
             <button
               onClick={handleRunCalculation}
               disabled={calculating}

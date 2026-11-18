@@ -17,11 +17,11 @@ export async function POST(req: NextRequest) {
 
     const { user } = authData;
 
-    // Requirement 10: Only DEPARTMENT_ADMIN can run calculations
-    if (!hasRole(user.role, ["DEPARTMENT_ADMIN"])) {
+    // Allowed for DEPARTMENT_ADMIN and FACULTY_CONTRIBUTOR during department testing
+    if (!hasRole(user.role, ["DEPARTMENT_ADMIN", "FACULTY_CONTRIBUTOR"])) {
       return NextResponse.json(
         {
-          error: "Forbidden. Only Department Administrators can trigger official metric calculation.",
+          error: "Forbidden. Administrators and Faculty Contributors can trigger metric calculation.",
           currentRole: user.role,
         },
         { status: 403 }

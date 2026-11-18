@@ -131,7 +131,7 @@ export default function FacultyPage() {
 
   const canCreate = currentUser?.role === "DEPARTMENT_ADMIN" || currentUser?.role === "FACULTY_CONTRIBUTOR";
   const canReview = currentUser?.role === "DEPARTMENT_ADMIN" || currentUser?.role === "REVIEWER";
-  const canDelete = currentUser?.role === "DEPARTMENT_ADMIN";
+  const canDelete = currentUser?.role === "DEPARTMENT_ADMIN" || currentUser?.role === "FACULTY_CONTRIBUTOR";
 
   // Fetch faculty records
   const fetchFaculty = useCallback(async () => {
