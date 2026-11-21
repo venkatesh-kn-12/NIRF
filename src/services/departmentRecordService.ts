@@ -109,6 +109,25 @@ export async function listRecords<T>(
     model.countDocuments(query),
   ]);
 
+  if (user.role === "VIEWER") {
+    const collectionName = (model as any).collection?.name || "";
+    for (const item of data) {
+      if (collectionName === "students") {
+        delete (item as any).dateOfBirth;
+        delete (item as any).email;
+        delete (item as any).phone;
+        delete (item as any).address;
+      } else if (collectionName === "financerecords") {
+        delete (item as any).voucherNumber;
+        delete (item as any).vendor;
+      } else if (collectionName === "perceptionrecords") {
+        delete (item as any).respondentEmail;
+        delete (item as any).respondentPhone;
+        delete (item as any).respondentName;
+      }
+    }
+  }
+
   return {
     data,
     total,
@@ -153,9 +172,15 @@ export async function getRecordById<T>(
     if (collectionName === "students") {
       delete record.dateOfBirth;
       delete record.email;
+      delete record.phone;
+      delete record.address;
     } else if (collectionName === "financerecords") {
       delete record.voucherNumber;
       delete record.vendor;
+    } else if (collectionName === "perceptionrecords") {
+      delete record.respondentEmail;
+      delete record.respondentPhone;
+      delete record.respondentName;
     }
   }
 

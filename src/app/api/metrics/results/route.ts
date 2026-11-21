@@ -41,13 +41,14 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const academicYear = searchParams.get("academicYear") || "2024-25";
+    const policy = (searchParams.get("policy") as any) || "COMPLETED_BASELINE";
     const parameter = searchParams.get("parameter");
     const status = searchParams.get("status");
 
     const showHistory = searchParams.get("history") === "true";
     const rpReportingWindow = getRPReportingWindow(academicYear);
     const goReportingWindow = getGOReportingWindow(academicYear);
-    const scoreYearConfig = getScoreYearConfig(2026, "COMPLETED_BASELINE", academicYear);
+    const scoreYearConfig = getScoreYearConfig(2026, policy, academicYear);
 
     // If history requested, return historical snapshot runs
     if (showHistory) {

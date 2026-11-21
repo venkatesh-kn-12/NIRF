@@ -801,7 +801,10 @@ export async function resolveApprovedMetricInputs(
     }
   }
 
-  const fullTuitionSupportedStudentsCount = Math.max(fullTuitionStudents.size, aggregateFeeSupportCount);
+  // Authoritative deduplication: Individual student records (from Student entity or Outreach studentReference)
+  // are the primary authoritative source. Aggregate Outreach records are used only if individual count is 0.
+  const fullTuitionSupportedStudentsCount =
+    fullTuitionStudents.size > 0 ? fullTuitionStudents.size : aggregateFeeSupportCount;
   const economicallyChallengedCount = fullTuitionSupportedStudentsCount;
   const feeReimbursementPercentage =
     totalApprovedStudents > 0

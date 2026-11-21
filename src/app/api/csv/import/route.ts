@@ -336,11 +336,33 @@ export async function POST(req: NextRequest) {
           }
 
           case "finance": {
+            const fy = rawRow.financialYear?.toString().trim() || "2024-25";
+            const head = rawRow.expenditureHead?.toString().trim() || "Department Operational Expense";
+            const expType = (rawRow.expenditureType || "OPERATIONAL").toString().toUpperCase();
+            const voucher = rawRow.voucherNumber?.toString().trim();
+
+            const duplicateQuery: any = {
+              department: "MCA",
+              financialYear: fy,
+              expenditureType: expType,
+            };
+            if (voucher) {
+              duplicateQuery.voucherNumber = voucher;
+            } else {
+              duplicateQuery.expenditureHead = { $regex: new RegExp(`^${head.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") };
+            }
+
+            const existing = await FinanceRecord.findOne(duplicateQuery);
+            if (existing) {
+              results.skippedDuplicates++;
+              continue;
+            }
+
             const parsed = financeSchema.safeParse({
               ...rawRow,
-              financialYear: rawRow.financialYear?.toString().trim() || "2024-25",
-              expenditureType: (rawRow.expenditureType || "OPERATIONAL").toString().toUpperCase(),
-              expenditureHead: rawRow.expenditureHead || "Department Operational Expense",
+              financialYear: fy,
+              expenditureType: expType,
+              expenditureHead: head,
               granularity: rawRow.granularity || "ANNUAL_AGGREGATE",
               amount: Number(rawRow.amount) || 0,
               unit: rawRow.unit || "INR",

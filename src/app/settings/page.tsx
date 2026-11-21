@@ -805,7 +805,6 @@ export default function SettingsPage() {
                       <option value="ALL">All Roles</option>
                       <option value="DEPARTMENT_ADMIN">Department Admin</option>
                       <option value="FACULTY_CONTRIBUTOR">Faculty Contributor</option>
-                      <option value="REVIEWER">Reviewer</option>
                       <option value="VIEWER">Viewer</option>
                     </select>
 
@@ -1426,7 +1425,7 @@ export default function SettingsPage() {
                             Verification Workflow Alerts
                           </div>
                           <div className="text-[11px] text-slate-500">
-                            Receive notifications when new evidence is assigned or needs reviewer approval.
+                            Receive notifications when new records, evidence, or audit logs are assigned.
                           </div>
                         </div>
                       </label>
@@ -1650,7 +1649,6 @@ export default function SettingsPage() {
                   >
                     <option value="DEPARTMENT_ADMIN">Department Admin</option>
                     <option value="FACULTY_CONTRIBUTOR">Faculty Contributor</option>
-                    <option value="REVIEWER">Reviewer</option>
                     <option value="VIEWER">Viewer</option>
                   </select>
                 </div>
@@ -1788,7 +1786,6 @@ export default function SettingsPage() {
                   >
                     <option value="DEPARTMENT_ADMIN">Department Admin</option>
                     <option value="FACULTY_CONTRIBUTOR">Faculty Contributor</option>
-                    <option value="REVIEWER">Reviewer</option>
                     <option value="VIEWER">Viewer</option>
                   </select>
                 </div>

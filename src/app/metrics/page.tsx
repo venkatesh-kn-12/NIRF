@@ -121,6 +121,7 @@ export default function MetricComputationPage() {
 
   // Filter & State
   const [academicYear, setAcademicYear] = useState("2024-25");
+  const [policy, setPolicy] = useState<"COMPLETED_BASELINE" | "CURRENT_PROVISIONAL">("COMPLETED_BASELINE");
   const [activeTab, setActiveTab] = useState<"ALL" | "TLR" | "RP" | "GO" | "OI" | "PR">("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,7 +159,7 @@ export default function MetricComputationPage() {
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/metrics/results?academicYear=${academicYear}`);
+      const res = await fetch(`/api/metrics/results?academicYear=${academicYear}&policy=${policy}`);
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -173,7 +174,7 @@ export default function MetricComputationPage() {
     } finally {
       setLoading(false);
     }
-  }, [academicYear, inspectedMetric]);
+  }, [academicYear, policy, inspectedMetric]);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -191,14 +192,14 @@ export default function MetricComputationPage() {
       const res = await fetch("/api/metrics/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ academicYear }),
+        body: JSON.stringify({ academicYear, policy }),
       });
       const result = await res.json();
 
       if (res.ok) {
         setActionMessage({
           type: "success",
-          text: `Deterministic calculation completed for AY ${academicYear}. Snapshot locked.`,
+          text: `Deterministic calculation completed for AY ${academicYear} (${policy === "CURRENT_PROVISIONAL" ? "Policy B: Provisional" : "Policy A: Baseline"}). Snapshot locked.`,
         });
         await fetchMetrics();
       } else {
@@ -299,6 +300,19 @@ export default function MetricComputationPage() {
             >
               <option value="2024-25">AY 2024-25</option>
               <option value="2023-24">AY 2023-24</option>
+            </select>
+          </div>
+
+          {/* Policy Selector */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700">
+            <span className="text-slate-400 text-[11px]">Policy:</span>
+            <select
+              value={policy}
+              onChange={(e) => setPolicy(e.target.value as any)}
+              className="bg-transparent focus:outline-none cursor-pointer"
+            >
+              <option value="COMPLETED_BASELINE">Policy A: Baseline</option>
+              <option value="CURRENT_PROVISIONAL">Policy B: Provisional</option>
             </select>
           </div>
 
