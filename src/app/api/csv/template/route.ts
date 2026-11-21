@@ -91,9 +91,39 @@ export async function GET(req: NextRequest) {
       ].join("\n");
       break;
 
+    case "intake":
+      filename = "mca_sanctioned_intake_template.csv";
+      csvContent = [
+        "programme,cohortYear,intakeYear,approvedIntake,approvalAuthority,approvalOrderNumber,approvalDate,effectiveAcademicYear,scope,reason",
+        'MCA,2024-2026,2024,60,AICTE,"F.No. South-West/1-2024/EOA",2024-05-15,2024-25,DEPARTMENT,"Initial Approval"',
+        'MCA,2023-2025,2023,60,AICTE,"F.No. South-West/1-2023/EOA",2023-05-20,2023-24,DEPARTMENT,"Initial Approval"',
+      ].join("\n");
+      break;
+
+    case "outreach":
+      filename = "mca_outreach_inclusivity_template.csv";
+      csvContent = [
+        "recordType,studentReference,isFullTuitionSupport,sponsoringAgency,facilityId,facilityName,facilityStatus,notes,academicYear",
+        'FEE_SUPPORT,1DS24MC001,true,"State Govt",,,,Full tuition fee reimbursement by State Govt,2024-25',
+        'ACCESSIBILITY,,,,ramps_walkways,"Ramps and Walkways",AVAILABLE,"Accessible ramps available across department blocks",2024-25',
+        'ACCESSIBILITY,,,,lifts_elevators,"Lifts and Elevators",AVAILABLE,"Elevator with voice support in academic block",2024-25',
+        'ACCESSIBILITY,,,,accessible_toilets,"Accessible Toilets",AVAILABLE,"Dedicated accessible toilets on all floors",2024-25',
+      ].join("\n");
+      break;
+
+    case "perception":
+      filename = "mca_perception_survey_template.csv";
+      csvContent = [
+        "sourceType,respondentCategory,responseId,rating,ratingScale,surveyCycle,remarks",
+        'DEPARTMENT_SURVEY,EMPLOYER,RESP-2024-001,4.5,1-5,2024-25,"Strong analytical skills and domain knowledge"',
+        'DEPARTMENT_SURVEY,ACADEMIC_PEER,RESP-2024-002,4.0,1-5,2024-25,"Solid MCA curriculum and good lab infrastructure"',
+        'DEPARTMENT_SURVEY,ALUMNI,RESP-2024-003,5.0,1-5,2024-25,"Excellent industry preparedness"',
+      ].join("\n");
+      break;
+
     default:
       return NextResponse.json(
-        { error: "Unknown module. Choose from: students, faculty, publications, patents, finance, projects, placements, graduation-outcomes, doctoral-awards" },
+        { error: "Unknown module. Choose from: students, faculty, publications, patents, finance, projects, placements, graduation-outcomes, doctoral-awards, intake, outreach, perception" },
         { status: 400 }
       );
   }

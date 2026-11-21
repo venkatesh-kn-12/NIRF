@@ -1128,7 +1128,13 @@ export function evaluateMetric(
 
     /* ────────────────────────── OI ────────────────────────── */
     case "RD": {
-      const { totalStudents, otherStatesCount, internationalCount } = inputs.diversityStats;
+      const {
+        totalStudents,
+        otherStatesCount,
+        internationalCount,
+        homeStateCount,
+        unknownDomicileCount = 0,
+      } = inputs.diversityStats;
       const maxMarks = 30;
 
       if (totalStudents <= 0) {
@@ -1144,9 +1150,10 @@ export function evaluateMetric(
             weightedScore: null,
             maxMarks,
             trace: {
-              formula: "RD = 25 * (Other States / Total) + 5 * (International / Total)",
+              formula: "RD = 25 × (OS / N) + 5 × (INT / N)",
               steps: [{ step: "Student Records Check", expression: "Approved students = 0", value: 0 }],
               notes: "Requires approved student enrollment records.",
+              blockers: ["MISSING_INPUT: No approved student records found"],
             },
           },
         };
@@ -1169,21 +1176,58 @@ export function evaluateMetric(
           weightedScore: rawScore,
           maxMarks,
           trace: {
-            formula: "RD = 25 * (Other States / Total) + 5 * (International / Total)",
+            formula: "RD = 25 × (OS / N) + 5 × (INT / N)",
             steps: [
-              { step: "Other States Fraction", expression: `${otherStatesCount} / ${totalStudents}`, value: round2(fracOtherStates) },
-              { step: "International Fraction", expression: `${internationalCount} / ${totalStudents}`, value: round2(fracInternational) },
-              { step: "Total RD Score", expression: `25 * ${round2(fracOtherStates)} + 5 * ${round2(fracInternational)}`, value: rawScore },
+              { step: "Total Approved Students (N)", expression: `${totalStudents} students`, value: totalStudents },
+              { step: "Other States (OS)", expression: `${otherStatesCount} students (${round2(fracOtherStates * 100)}%)`, value: otherStatesCount },
+              { step: "International (INT)", expression: `${internationalCount} students (${round2(fracInternational * 100)}%)`, value: internationalCount },
+              { step: "Home State (HS)", expression: `${homeStateCount} students`, value: homeStateCount },
+              { step: "Unknown Domicile", expression: `${unknownDomicileCount} students`, value: unknownDomicileCount },
+              { step: "Other States Component (max 25)", expression: `25 × (${otherStatesCount} / ${totalStudents})`, value: round2(25 * fracOtherStates) },
+              { step: "International Component (max 5)", expression: `5 × (${internationalCount} / ${totalStudents})`, value: round2(5 * fracInternational) },
+              { step: "Total RD Score", expression: `${round2(25 * fracOtherStates)} + ${round2(5 * fracInternational)}`, value: rawScore },
             ],
+            notes: "DEPARTMENTAL_SIMULATION_RULE: Evaluates geographical diversity with mutually exclusive categories (Home State, Other State, International). International students are strictly excluded from other states count.",
           },
         },
       };
     }
 
     case "WD": {
-      const { womenStudentsPercentage } = inputs.diversityStats;
-      const { womenFacultyCount, regularFacultyCount } = inputs.facultyStats;
+      const {
+        womenStudentsPercentage,
+        womenStudentsCount,
+        menStudentsCount = 0,
+        unknownGenderStudentsCount = 0,
+        totalStudents,
+      } = inputs.diversityStats;
+      const {
+        womenFacultyCount,
+        regularFacultyCount,
+      } = inputs.facultyStats;
       const maxMarks = 30;
+
+      if (totalStudents <= 0 && regularFacultyCount <= 0) {
+        return {
+          metricCode: "WD",
+          parameter: "OI",
+          name: "Percentage of Women (Women Diversity)",
+          status: "PENDING_INPUT",
+          maxMarks,
+          result: {
+            rawScore: null,
+            normalisedScore: null,
+            weightedScore: null,
+            maxMarks,
+            trace: {
+              formula: "WD = 15 × min(1.0, NWS / 50) + 15 × min(1.0, NWF / 20)",
+              steps: [{ step: "Records Check", expression: "No student or faculty records found", value: 0 }],
+              notes: "Requires student and faculty records.",
+              blockers: ["MISSING_INPUT: Student and faculty records required"],
+            },
+          },
+        };
+      }
 
       const womenFacultyPercentage =
         regularFacultyCount > 0
@@ -1192,7 +1236,9 @@ export function evaluateMetric(
 
       const f_NWS = Math.min(1.0, womenStudentsPercentage / 50);
       const f_NWF = Math.min(1.0, womenFacultyPercentage / 20);
-      const rawScore = round2(Math.min(30, 15 * f_NWS + 15 * f_NWF));
+      const nwsScore = round2(15 * f_NWS);
+      const nwfScore = round2(15 * f_NWF);
+      const rawScore = round2(Math.min(30, nwsScore + nwfScore));
       const normalisedScore = round2((rawScore / maxMarks) * 100);
 
       return {
@@ -1207,22 +1253,53 @@ export function evaluateMetric(
           weightedScore: rawScore,
           maxMarks,
           trace: {
-            formula: "WD = 15 * min(1, NWS / 50) + 15 * min(1, NWF / 20)",
+            formula: "WD = 15 × min(1.0, NWS / 50) + 15 × min(1.0, NWF / 20)",
             steps: [
-              { step: "Women Students (NWS)", expression: `${womenStudentsPercentage}% (Target 50%)`, value: round2(15 * f_NWS) },
-              { step: "Women Faculty (NWF)", expression: `${womenFacultyPercentage}% (Target 20%)`, value: round2(15 * f_NWF) },
-              { step: "Total WD Score", expression: `${round2(15 * f_NWS)} + ${round2(15 * f_NWF)}`, value: rawScore },
+              { step: "Women Students Count", expression: `${womenStudentsCount} of ${totalStudents} (Men: ${menStudentsCount}, Unknown: ${unknownGenderStudentsCount})`, value: womenStudentsCount },
+              { step: "Women Students Percentage (NWS)", expression: `${womenStudentsPercentage}% (Target: 50%)`, value: nwsScore },
+              { step: "Women Faculty Count", expression: `${womenFacultyCount} of ${regularFacultyCount}`, value: womenFacultyCount },
+              { step: "Women Faculty Percentage (NWF)", expression: `${womenFacultyPercentage}% (Target: 20%)`, value: nwfScore },
+              { step: "Total WD Score", expression: `${nwsScore} + ${nwfScore}`, value: rawScore },
             ],
+            notes: "DEPARTMENTAL_SIMULATION_RULE: Evaluates female student diversity (target 50%) and regular female faculty representation (target 20%).",
           },
         },
       };
     }
 
     case "ESCS": {
-      const { feeReimbursementPercentage } = inputs.diversityStats;
+      const {
+        feeReimbursementPercentage,
+        fullTuitionSupportedStudentsCount,
+        totalStudents,
+      } = inputs.diversityStats;
       const maxMarks = 20;
 
-      // Expectation target: 20% economically backward students receiving tuition reimbursement
+      if (totalStudents <= 0) {
+        return {
+          metricCode: "ESCS",
+          parameter: "OI",
+          name: "Economically and Socially Challenged Students",
+          status: "PENDING_INPUT",
+          maxMarks,
+          result: {
+            rawScore: null,
+            normalisedScore: null,
+            weightedScore: null,
+            maxMarks,
+            trace: {
+              formula: "ESCS = 20 × min(1.0, (Nesc / N) / 0.20)   [MCA_FULL_TUITION_SUPPORT_V1]",
+              steps: [{ step: "Student Records Check", expression: "Total students = 0", value: 0 }],
+              notes: "Requires approved student enrollment records.",
+              blockers: ["MISSING_INPUT: No approved student records found"],
+            },
+          },
+        };
+      }
+
+      // Model MCA_FULL_TUITION_SUPPORT_V1:
+      // Evaluates deduplicated students receiving full tuition fee support
+      // Benchmark: 20% of student body receiving full support earns full 20 marks
       const f_Nesc = Math.min(1.0, feeReimbursementPercentage / 20);
       const rawScore = round2(Math.min(20, 20 * f_Nesc));
       const normalisedScore = round2((rawScore / maxMarks) * 100);
@@ -1239,24 +1316,64 @@ export function evaluateMetric(
           weightedScore: rawScore,
           maxMarks,
           trace: {
-            formula: "ESCS = 20 * f(Nesc)",
+            formula: "ESCS = 20 × min(1.0, (FullTuitionSupported / Total) / 0.20)   [MCA_FULL_TUITION_SUPPORT_V1]",
             steps: [
-              { step: "Tuition Reimbursement Ratio (Nesc)", expression: `${feeReimbursementPercentage}%`, value: round2(f_Nesc) },
-              { step: "Total ESCS Score", expression: `20 * ${round2(f_Nesc)}`, value: rawScore },
+              { step: "Total Approved Students (N)", expression: `${totalStudents}`, value: totalStudents },
+              { step: "Full Tuition Supported Students (Nesc)", expression: `${fullTuitionSupportedStudentsCount} distinct students`, value: fullTuitionSupportedStudentsCount },
+              { step: "Tuition Reimbursement Ratio", expression: `${feeReimbursementPercentage}% of students (benchmark 20%)`, value: round2(f_Nesc) },
+              { step: "Total ESCS Score", expression: `20 × ${round2(f_Nesc)}`, value: rawScore },
             ],
+            notes: "DEPARTMENTAL_SIMULATION_RULE: Model MCA_FULL_TUITION_SUPPORT_V1. Evaluates deduplicated students receiving full tuition reimbursement from Govt/institutional support.",
           },
         },
       };
     }
 
     case "PCS": {
-      const { physicallyChallengedFacilityScore, physicallyChallengedFacilitiesVerified } = inputs.diversityStats;
+      const {
+        hasFacilityChecklist,
+        applicableFacilitiesCount = 5,
+        availableFacilitiesCount,
+        physicallyChallengedFacilitiesVerified,
+        physicallyChallengedFacilityScore = 0,
+      } = inputs.diversityStats;
       const maxMarks = 20;
 
-      // NIRF mandate: 20 marks for full verified facilities; proportional if partial; 0 if not verified
-      const rawScore = physicallyChallengedFacilitiesVerified
-        ? Math.min(20, physicallyChallengedFacilityScore)
-        : 0;
+      const hasAudit = Boolean(hasFacilityChecklist || physicallyChallengedFacilitiesVerified || physicallyChallengedFacilityScore > 0);
+
+      // Rule: If checklist not recorded/empty -> PENDING_INPUT (NOT artificial 0 or 20)
+      if (!hasAudit) {
+        return {
+          metricCode: "PCS",
+          parameter: "OI",
+          name: "Facilities for Physically Challenged Students",
+          status: "PENDING_INPUT",
+          maxMarks,
+          result: {
+            rawScore: null,
+            normalisedScore: null,
+            weightedScore: null,
+            maxMarks,
+            trace: {
+              formula: "PCS = 20 × (Available / Applicable)   [MCA_CAMPUS_ACCESSIBILITY_V1]",
+              steps: [
+                { step: "Facility Checklist Audit", expression: "Checklist unsubmitted", value: 0 },
+              ],
+              notes: "Requires campus accessibility checklist (Ramps, Lifts, Toilets, Assistive Tech, Signage) or DepartmentConfig checklist.",
+              blockers: ["MISSING_INPUT: Campus accessibility checklist required"],
+            },
+          },
+          notes: "Campus accessibility checklist unsubmitted. Enter facility status in Outreach or Department Settings.",
+        };
+      }
+
+      const denom = applicableFacilitiesCount > 0 ? applicableFacilitiesCount : 5;
+      const availCount = availableFacilitiesCount !== undefined
+        ? availableFacilitiesCount
+        : Math.round((physicallyChallengedFacilityScore / 20) * denom);
+
+      const ratio = round2(availCount / denom);
+      const rawScore = round2(Math.min(20, 20 * ratio));
       const normalisedScore = round2((rawScore / maxMarks) * 100);
 
       return {
@@ -1271,11 +1388,14 @@ export function evaluateMetric(
           weightedScore: rawScore,
           maxMarks,
           trace: {
-            formula: "PCS = 20 if full facilities provided; otherwise in proportion to facilities",
+            formula: "PCS = 20 × (Available / Applicable)   [MCA_CAMPUS_ACCESSIBILITY_V1]",
             steps: [
-              { step: "Accessibility Audit", expression: physicallyChallengedFacilitiesVerified ? "Audit Verified" : "Default Campus Baseline", value: rawScore },
-              { step: "Total PCS Score", expression: `${rawScore} / 20`, value: rawScore },
+              { step: "Applicable Facilities", expression: `${denom} campus facilities audited`, value: denom },
+              { step: "Available Facilities", expression: `${availCount} confirmed available`, value: availCount },
+              { step: "Accessibility Ratio", expression: `${availCount} / ${denom} = ${ratio}`, value: ratio },
+              { step: "Total PCS Score", expression: `20 × ${ratio}`, value: rawScore },
             ],
+            notes: "DEPARTMENTAL_SIMULATION_RULE: Model MCA_CAMPUS_ACCESSIBILITY_V1. Evaluates 5 standard campus accessibility provisions: Ramps/Walkways, Lifts/Elevators, Accessible Toilets, Assistive Tech Labs, Directional Signage.",
           },
         },
       };
@@ -1283,15 +1403,24 @@ export function evaluateMetric(
 
     /* ────────────────────────── PR ────────────────────────── */
     case "PR": {
-      const { hasOfficialScore, officialScore } = inputs.perceptionStats;
+      const {
+        hasOfficialScore,
+        officialScore,
+        hasSurveyResponses,
+        surveyResponseCount,
+        surveyMeanRating,
+        configuredModel,
+      } = inputs.perceptionStats;
       const maxMarks = 100;
 
-      if (!hasOfficialScore || officialScore === null) {
+      // If neither official score nor survey responses exist -> NOT_COMPUTABLE / PENDING_INPUT (strictly NO artificial zero!)
+      if (!hasOfficialScore && !hasSurveyResponses) {
+        const status: MetricCalculationStatus = configuredModel === "DEPARTMENT_SURVEY_V1" ? "PENDING_INPUT" : "NOT_COMPUTABLE";
         return {
           metricCode: "PR",
           parameter: "PR",
           name: "Peer Perception: Employers & Academic Peer",
-          status: "NOT_COMPUTABLE",
+          status,
           maxMarks,
           result: {
             rawScore: null,
@@ -1299,18 +1428,53 @@ export function evaluateMetric(
             weightedScore: null,
             maxMarks,
             trace: {
-              formula: "PR = official peer perception score only; if unavailable, PR = NOT_COMPUTABLE",
+              formula: "PR = official peer perception score only; if unavailable, PR = NOT_COMPUTABLE (or 100 × (r̄ - 1) / 4 under DEPARTMENT_SURVEY_V1)",
               steps: [
                 { step: "Official Survey Status", expression: "NIRF Survey Ingestion", value: "NOT_AVAILABLE" },
+                { step: "Departmental Survey Status", expression: "Responses recorded = 0", value: 0 },
               ],
-              notes: "Per NIRF mandate: PR requires official perception score. Imputation or heuristic prediction is strictly prohibited. Marked NOT_COMPUTABLE.",
+              notes: "Per NIRF mandate: PR requires official perception score or departmental survey responses. Imputation or heuristic prediction is strictly prohibited.",
+              blockers: ["MISSING_INPUT: Official NIRF perception score or departmental survey responses required"],
             },
           },
           notes: "Official employer and academic peer perception survey score not available.",
         };
       }
 
-      const rawScore = round2(Math.min(100, officialScore));
+      // If survey responses exist, evaluate DEPARTMENT_SURVEY_V1
+      if (hasSurveyResponses) {
+        // Formula: PR = 100 * (meanRating - 1) / 4 (for 1 to 5 scale)
+        const rawRatio = Math.max(0, Math.min(1.0, (surveyMeanRating - 1) / 4));
+        const rawScore = round2(Math.min(100, 100 * rawRatio));
+        const normalisedScore = rawScore;
+
+        return {
+          metricCode: "PR",
+          parameter: "PR",
+          name: "Peer Perception: Employers & Academic Peer",
+          status: "COMPUTED",
+          maxMarks,
+          result: {
+            rawScore,
+            normalisedScore,
+            weightedScore: rawScore,
+            maxMarks,
+            trace: {
+              formula: "PR = 100 × (r̄ - 1) / 4   [DEPARTMENT_SURVEY_V1]",
+              steps: [
+                { step: "Survey Response Count (n)", expression: `${surveyResponseCount} responses collected`, value: surveyResponseCount },
+                { step: "Mean Survey Rating (r̄)", expression: `${surveyMeanRating} on 1-5 scale`, value: surveyMeanRating },
+                { step: "Normalized Ratio ((r̄ - 1) / 4)", expression: `(${surveyMeanRating} - 1) / 4 = ${round2(rawRatio)}`, value: round2(rawRatio) },
+                { step: "Total Simulated PR Score", expression: `100 × ${round2(rawRatio)}`, value: rawScore },
+              ],
+              notes: "DEPARTMENTAL_SIMULATION_RULE: Evaluated from departmental peer and employer survey responses on a 1-5 rating scale under model DEPARTMENT_SURVEY_V1.",
+            },
+          },
+        };
+      }
+
+      // Otherwise, official score
+      const rawScore = round2(Math.min(100, officialScore ?? 0));
       return {
         metricCode: "PR",
         parameter: "PR",
@@ -1327,6 +1491,7 @@ export function evaluateMetric(
             steps: [
               { step: "Official Ingested Score", expression: `NIRF Survey = ${officialScore}`, value: rawScore },
             ],
+            notes: "Evaluated from officially ingested NIRF perception survey score.",
           },
         },
       };

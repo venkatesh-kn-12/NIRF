@@ -25,7 +25,10 @@ interface CsvImportModalProps {
     | "projects"
     | "placements"
     | "graduation-outcomes"
-    | "doctoral-awards";
+    | "doctoral-awards"
+    | "intake"
+    | "outreach"
+    | "perception";
   moduleTitle: string;
   onImportSuccess: () => void;
 }

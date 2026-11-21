@@ -139,3 +139,72 @@ export function getGOReportingWindow(academicYear = "2024-25"): GOReportingWindo
     description: `3 Graduating Cohorts: ${cohortBatches.join(", ")} (Graduation Years ${graduatingYears.join(", ")})`,
   };
 }
+
+export type SimulationPolicy = "COMPLETED_BASELINE" | "CURRENT_PROVISIONAL";
+
+export interface ScoreYearConfig {
+  scoringYear: number;
+  academicYear: string;
+  policy: SimulationPolicy;
+  isProvisional: boolean;
+  provisionalCutoffDate: string;
+  bannerMessage?: string;
+  applicableCohorts: string[];
+  applicableIntakeYears: number[];
+  rpCalendarYears: number[];
+  goGraduationYears: number[];
+  financialYears: string[];
+}
+
+/**
+ * Resolves scoring year policy parameters for MCA NIRF 2026 simulator.
+ * - Policy A (COMPLETED_BASELINE): Evaluates completed 3-year baseline (e.g. 2023, 2024, 2025).
+ * - Policy B (CURRENT_PROVISIONAL): Evaluates up to cutoff date in 2026 with a provisional status banner.
+ */
+export function getScoreYearConfig(
+  scoringYear = 2026,
+  policy: SimulationPolicy = "COMPLETED_BASELINE",
+  academicYear = "2024-25",
+  provisionalCutoffDate = "2026-02-28"
+): ScoreYearConfig {
+  const isProvisional = policy === "CURRENT_PROVISIONAL";
+  const startYearMatch = academicYear.match(/^(\d{4})/);
+  const baseYear = startYearMatch ? parseInt(startYearMatch[1], 10) : 2024;
+
+  const applicableIntakeYears = [baseYear - 1, baseYear]; // e.g. [2023, 2024]
+  const applicableCohorts = [
+    `${baseYear - 1}-${baseYear + 1}`, // 2023-2025
+    `${baseYear}-${baseYear + 2}`,     // 2024-2026
+  ];
+
+  const rpCalendarYears = isProvisional
+    ? [scoringYear - 2, scoringYear - 1, scoringYear] // [2024, 2025, 2026]
+    : [scoringYear - 3, scoringYear - 2, scoringYear - 1]; // [2023, 2024, 2025]
+
+  const goGraduationYears = isProvisional
+    ? [scoringYear - 2, scoringYear - 1, scoringYear]
+    : [baseYear - 2, baseYear - 1, baseYear];
+
+  const financialYears = [
+    `${baseYear - 3}-${String(baseYear - 2).slice(-2)}`,
+    `${baseYear - 2}-${String(baseYear - 1).slice(-2)}`,
+    `${baseYear - 1}-${String(baseYear).slice(-2)}`,
+    `${baseYear}-${String(baseYear + 1).slice(-2)}`,
+  ];
+
+  return {
+    scoringYear,
+    academicYear,
+    policy,
+    isProvisional,
+    provisionalCutoffDate,
+    bannerMessage: isProvisional
+      ? `PROVISIONAL 2026 SIMULATION: Evaluated under Policy B (Current Provisional) up to cutoff date ${provisionalCutoffDate}. Subject to data revision until official cycle close.`
+      : undefined,
+    applicableCohorts,
+    applicableIntakeYears,
+    rpCalendarYears,
+    goGraduationYears,
+    financialYears,
+  };
+}

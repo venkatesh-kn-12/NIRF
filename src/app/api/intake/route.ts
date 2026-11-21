@@ -3,6 +3,7 @@ import { SanctionedIntake } from "@/models/SanctionedIntake";
 import { sanctionedIntakeSchema } from "@/validators";
 import { listRecords, createRecord, RecordServiceError } from "@/services/departmentRecordService";
 import { extractTokenFromRequest, getSessionUser } from "@/lib/auth";
+import { hasRole } from "@/lib/rbac";
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,6 +35,13 @@ export async function POST(req: NextRequest) {
     if (!token) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     const authData = await getSessionUser(token);
     if (!authData) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+
+    if (!hasRole(authData.user.role, ["DEPARTMENT_ADMIN"])) {
+      return NextResponse.json(
+        { error: "Forbidden. Only Department Admin can create sanctioned intake records." },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const newRecord = await createRecord(

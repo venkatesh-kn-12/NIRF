@@ -118,16 +118,26 @@ function buildMockInputs(overrides: Partial<ResolvedMetricInputs> = {}): Resolve
       homeStateCount: 96,
       otherStatesCount: 24, // 20% other state
       internationalCount: 0,
+      unknownDomicileCount: 0,
       womenStudentsCount: 60, // 50% women students
+      menStudentsCount: 60,
+      unknownGenderStudentsCount: 0,
       womenStudentsPercentage: 50.0,
       economicallyChallengedCount: 24,
       feeReimbursementPercentage: 20.0,
+      fullTuitionSupportedStudentsCount: 24,
+      hasFacilityChecklist: true,
+      availableFacilitiesCount: 5,
+      applicableFacilitiesCount: 5,
       physicallyChallengedFacilitiesVerified: true,
       physicallyChallengedFacilityScore: 20,
     },
     perceptionStats: {
       hasOfficialScore: false,
       officialScore: null,
+      hasSurveyResponses: false,
+      surveyResponseCount: 0,
+      surveyMeanRating: 0,
     },
     ...overrides,
   };
@@ -502,7 +512,13 @@ console.log("\n[TEST] PR - Peer Perception Mandate");
 
   // If official score is present
   const inputsWithPR = buildMockInputs({
-    perceptionStats: { hasOfficialScore: true, officialScore: 78.5 },
+    perceptionStats: {
+      hasOfficialScore: true,
+      officialScore: 78.5,
+      hasSurveyResponses: false,
+      surveyResponseCount: 0,
+      surveyMeanRating: 0,
+    },
   });
   const prWithScore = evaluateMetric("PR", inputsWithPR);
   assert.equal(prWithScore.status, "COMPUTED");

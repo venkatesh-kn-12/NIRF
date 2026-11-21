@@ -12,7 +12,10 @@ import { GraduationOutcome } from "@/models/GraduationOutcome";
 import { PlacementRecord } from "@/models/PlacementRecord";
 import { DoctoralAward } from "@/models/DoctoralAward";
 import { ZeroActivityDeclaration } from "@/models/ZeroActivityDeclaration";
-import { getRPReportingWindow, getGOReportingWindow } from "@/lib/reportingWindow";
+import { SanctionedIntake } from "@/models/SanctionedIntake";
+import { OutreachRecord } from "@/models/OutreachRecord";
+import { PerceptionRecord } from "@/models/PerceptionRecord";
+import { getRPReportingWindow, getGOReportingWindow, getScoreYearConfig } from "@/lib/reportingWindow";
 import { extractTokenFromRequest, getSessionUser } from "@/lib/auth";
 import { hasRole } from "@/lib/rbac";
 import { PARAMETERS_CONFIG } from "@/services/metrics/methodologyConfig";
@@ -44,6 +47,7 @@ export async function GET(req: NextRequest) {
     const showHistory = searchParams.get("history") === "true";
     const rpReportingWindow = getRPReportingWindow(academicYear);
     const goReportingWindow = getGOReportingWindow(academicYear);
+    const scoreYearConfig = getScoreYearConfig(2026, "COMPLETED_BASELINE", academicYear);
 
     // If history requested, return historical snapshot runs
     if (showHistory) {
@@ -114,6 +118,9 @@ export async function GET(req: NextRequest) {
         latestPlacement,
         latestDoctoralAward,
         latestDecl,
+        latestIntake,
+        latestOutreach,
+        latestPerception,
       ] = await Promise.all([
         DepartmentConfig.findOne({ department: "MCA" }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
         Publication.findOne({ department: "MCA" }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
@@ -126,16 +133,22 @@ export async function GET(req: NextRequest) {
         PlacementRecord.findOne({ department: "MCA" }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
         DoctoralAward.findOne({ department: "MCA" }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
         ZeroActivityDeclaration.findOne({ department: "MCA", academicYear }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
+        SanctionedIntake.findOne({ department: "MCA" }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
+        OutreachRecord.findOne({ department: "MCA" }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
+        PerceptionRecord.findOne({ department: "MCA" }).sort({ updatedAt: -1 }).select("updatedAt").lean(),
       ]);
 
       const sources = [
         { name: "Department Configuration", time: latestConfig?.updatedAt ? new Date(latestConfig.updatedAt).getTime() : 0 },
+        { name: "Sanctioned Intake", time: latestIntake?.updatedAt ? new Date(latestIntake.updatedAt).getTime() : 0 },
         { name: "Publications", time: latestPub?.updatedAt ? new Date(latestPub.updatedAt).getTime() : 0 },
         { name: "Patents", time: latestPatent?.updatedAt ? new Date(latestPatent.updatedAt).getTime() : 0 },
         { name: "Projects & Consultancy", time: latestPrj?.updatedAt ? new Date(latestPrj.updatedAt).getTime() : 0 },
         { name: "Finance Records", time: latestFinance?.updatedAt ? new Date(latestFinance.updatedAt).getTime() : 0 },
         { name: "Faculty Records", time: latestFaculty?.updatedAt ? new Date(latestFaculty.updatedAt).getTime() : 0 },
         { name: "Student Records", time: latestStudent?.updatedAt ? new Date(latestStudent.updatedAt).getTime() : 0 },
+        { name: "Outreach & Inclusivity Records", time: latestOutreach?.updatedAt ? new Date(latestOutreach.updatedAt).getTime() : 0 },
+        { name: "Perception Survey Records", time: latestPerception?.updatedAt ? new Date(latestPerception.updatedAt).getTime() : 0 },
         { name: "Graduation Outcomes", time: latestGradOutcome?.updatedAt ? new Date(latestGradOutcome.updatedAt).getTime() : 0 },
         { name: "Placement Records", time: latestPlacement?.updatedAt ? new Date(latestPlacement.updatedAt).getTime() : 0 },
         { name: "Doctoral Awards", time: latestDoctoralAward?.updatedAt ? new Date(latestDoctoralAward.updatedAt).getTime() : 0 },
@@ -201,6 +214,8 @@ export async function GET(req: NextRequest) {
       staleReason,
       rpReportingWindow,
       goReportingWindow,
+      scoreYearConfig,
+      partialWeightedSubtotal: overallResult?.result?.partialWeightedSubtotal ?? null,
       counts,
       parameterSummaries,
       results: subMetrics,

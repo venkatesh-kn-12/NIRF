@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { DepartmentConfig } from "@/models/DepartmentConfig";
-import { getRPReportingWindow, getGOReportingWindow } from "@/lib/reportingWindow";
+import { getRPReportingWindow, getGOReportingWindow, getScoreYearConfig } from "@/lib/reportingWindow";
 import {
   extractTokenFromRequest,
   getSessionUser,
@@ -55,12 +55,19 @@ export async function GET(req: NextRequest) {
 
     const rpReportingWindow = getRPReportingWindow(config.selectedAcademicYear || "2024-25");
     const goReportingWindow = getGOReportingWindow(config.selectedAcademicYear || "2024-25");
+    const scoreYearConfig = getScoreYearConfig(
+      config.scoringYear || 2026,
+      config.simulationPolicy || "COMPLETED_BASELINE",
+      config.selectedAcademicYear || "2024-25",
+      config.provisionalCutoffDate || "2026-02-28"
+    );
 
     return NextResponse.json({
       success: true,
       config,
       rpReportingWindow,
       goReportingWindow,
+      scoreYearConfig,
     });
   } catch (error) {
     console.error("GET /api/settings/department error:", error);
@@ -105,6 +112,11 @@ export async function PUT(req: NextRequest) {
       programmeName,
       homeState,
       selectedAcademicYear,
+      scoringYear,
+      simulationPolicy,
+      provisionalCutoffDate,
+      surveyScale,
+      facilityChecklist,
       reportingPeriod,
       cycleStartDate,
       cycleEndDate,
@@ -175,6 +187,19 @@ export async function PUT(req: NextRequest) {
     if (programmeName !== undefined) config.programmeName = programmeName.trim();
     if (homeState !== undefined) config.homeState = homeState.trim();
     if (selectedAcademicYear !== undefined) config.selectedAcademicYear = selectedAcademicYear.trim();
+    if (scoringYear !== undefined) config.scoringYear = Number(scoringYear) || 2026;
+    if (simulationPolicy !== undefined) config.simulationPolicy = simulationPolicy;
+    if (provisionalCutoffDate !== undefined) config.provisionalCutoffDate = provisionalCutoffDate;
+    if (surveyScale !== undefined) config.surveyScale = surveyScale;
+    if (facilityChecklist !== undefined && typeof facilityChecklist === "object") {
+      config.facilityChecklist = {
+        ramps_walkways: Boolean(facilityChecklist.ramps_walkways),
+        lifts_elevators: Boolean(facilityChecklist.lifts_elevators),
+        accessible_toilets: Boolean(facilityChecklist.accessible_toilets),
+        assistive_tech_labs: Boolean(facilityChecklist.assistive_tech_labs),
+        directional_signage: Boolean(facilityChecklist.directional_signage),
+      };
+    }
     if (reportingPeriod !== undefined) config.reportingPeriod = reportingPeriod.trim();
     if (cycleStartDate !== undefined) config.cycleStartDate = cycleStartDate;
     if (cycleEndDate !== undefined) config.cycleEndDate = cycleEndDate;

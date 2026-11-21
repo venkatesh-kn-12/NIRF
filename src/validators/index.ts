@@ -338,9 +338,16 @@ export const doctoralAwardUpdateSchema = doctoralAwardSchema.partial();
 // 9. OutreachRecord Schema
 export const outreachSchema = z.object({
   recordType: z.enum(["REGIONAL_DIVERSITY", "GENDER_DIVERSITY", "FEE_SUPPORT", "ACCESSIBILITY"]),
-  aggregateCount: z.coerce.number().min(0),
-  totalEligiblePopulation: z.coerce.number().min(0),
+  aggregateCount: z.coerce.number().min(0).default(0),
+  totalEligiblePopulation: z.coerce.number().min(0).default(0),
   supportingDocument: z.string().optional().default(""),
+  studentReference: z.string().optional(),
+  isFullTuitionSupport: z.boolean().optional().default(false),
+  sponsoringAgency: z.string().optional().default(""),
+  facilityId: z.string().optional(),
+  facilityName: z.string().optional(),
+  facilityStatus: z.enum(["AVAILABLE", "NOT_AVAILABLE", "NOT_APPLICABLE"]).optional().default("AVAILABLE"),
+  notes: z.string().optional().default(""),
   ...commonFields,
 });
 
@@ -350,12 +357,17 @@ export const outreachRecordUpdateSchema = outreachUpdateSchema;
 
 // 10. PerceptionRecord Schema
 export const perceptionSchema = z.object({
-  sourceType: z.enum(["OFFICIAL_SCORE", "INTERNAL_FEEDBACK"]),
-  score: z.coerce.number().min(0),
+  sourceType: z.enum(["OFFICIAL_SCORE", "INTERNAL_FEEDBACK", "DEPARTMENT_SURVEY"]).default("DEPARTMENT_SURVEY"),
+  score: z.coerce.number().min(0).default(0),
   maximumScore: z.coerce.number().min(1).default(100),
-  surveyOrReferencePeriod: z.string().min(2, "Survey or reference period is required"),
+  surveyOrReferencePeriod: z.string().min(2, "Survey or reference period is required").default("2024-25"),
   sourceDocument: z.string().optional().default(""),
   remarks: z.string().optional().default(""),
+  respondentCategory: z.enum(["EMPLOYER", "ACADEMIC_PEER", "ALUMNI", "PARENT", "OTHER"]).optional().default("ACADEMIC_PEER"),
+  responseId: z.string().optional(),
+  rating: z.coerce.number().min(1).max(5).optional(),
+  ratingScale: z.string().optional().default("1-5"),
+  surveyCycle: z.string().optional().default("2024-25"),
   ...commonFields,
 });
 

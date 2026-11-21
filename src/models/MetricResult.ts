@@ -17,6 +17,7 @@ export interface IMetricResultData {
   normalisedScore: number | null;
   weightedScore: number | null;
   maxMarks: number;
+  partialWeightedSubtotal?: number | null;
   trace: {
     formula: string;
     steps: IMetricExecutionTraceStep[];

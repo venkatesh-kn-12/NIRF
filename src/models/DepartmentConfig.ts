@@ -17,12 +17,25 @@ export interface IGOSettings {
   cohortYearsCount: number;
 }
 
+export interface IFacilityChecklist {
+  ramps_walkways: boolean;
+  lifts_elevators: boolean;
+  accessible_toilets: boolean;
+  assistive_tech_labs: boolean;
+  directional_signage: boolean;
+}
+
 export interface IDepartmentConfig extends Document {
   institutionName: string;
   department: "MCA";
   programmeName: string;
   homeState: string;
   selectedAcademicYear: string;
+  scoringYear: number;
+  simulationPolicy: "COMPLETED_BASELINE" | "CURRENT_PROVISIONAL";
+  provisionalCutoffDate: string;
+  surveyScale: string;
+  facilityChecklist: IFacilityChecklist;
   reportingPeriod: string;
   cycleStartDate: string;
   cycleEndDate: string;
@@ -75,6 +88,34 @@ const DepartmentConfigSchema = new Schema<IDepartmentConfig>(
       required: true,
       default: "2024-25",
       trim: true,
+    },
+    scoringYear: {
+      type: Number,
+      required: true,
+      default: 2026,
+    },
+    simulationPolicy: {
+      type: String,
+      required: true,
+      enum: ["COMPLETED_BASELINE", "CURRENT_PROVISIONAL"],
+      default: "COMPLETED_BASELINE",
+    },
+    provisionalCutoffDate: {
+      type: String,
+      required: true,
+      default: "2026-02-28",
+    },
+    surveyScale: {
+      type: String,
+      required: true,
+      default: "1-5",
+    },
+    facilityChecklist: {
+      ramps_walkways: { type: Boolean, default: false },
+      lifts_elevators: { type: Boolean, default: false },
+      accessible_toilets: { type: Boolean, default: false },
+      assistive_tech_labs: { type: Boolean, default: false },
+      directional_signage: { type: Boolean, default: false },
     },
     reportingPeriod: {
       type: String,

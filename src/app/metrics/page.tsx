@@ -86,6 +86,20 @@ interface MetricsApiResponse {
   isLabel: string;
   lastCalculated: string | null;
   overallIndicativeScore: number | null;
+  partialWeightedSubtotal?: number | null;
+  scoreYearConfig?: {
+    scoringYear: number;
+    academicYear: string;
+    policy: string;
+    isProvisional: boolean;
+    provisionalCutoffDate: string;
+    bannerMessage?: string;
+    applicableCohorts: string[];
+    applicableIntakeYears: number[];
+    rpCalendarYears: number[];
+    goGraduationYears: number[];
+    financialYears: string[];
+  };
   counts: {
     total: number;
     computed: number;
@@ -331,6 +345,54 @@ export default function MetricComputationPage() {
           </div>
         )}
 
+        {/* Score Year & Policy Banner */}
+        {data?.scoreYearConfig && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-blue-900">
+                  Scenario Score Year {data.scoreYearConfig.scoringYear}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                  data.scoreYearConfig.isProvisional
+                    ? "bg-amber-100 text-amber-800 border border-amber-300"
+                    : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                }`}>
+                  {data.scoreYearConfig.policy === "CURRENT_PROVISIONAL" ? "Policy B: Current Provisional" : "Policy A: Completed Baseline"}
+                </span>
+              </div>
+              <div className="text-slate-600 font-mono text-[11px]">
+                Cutoff Date: {data.scoreYearConfig.provisionalCutoffDate}
+              </div>
+            </div>
+
+            {data.scoreYearConfig.bannerMessage && (
+              <p className="text-amber-800 font-medium">
+                {data.scoreYearConfig.bannerMessage}
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-blue-100 text-[11px] text-slate-600">
+              <div>
+                <span className="text-slate-400 block text-[10px]">RP Calendar Years:</span>
+                <span className="font-semibold text-slate-800 font-mono">{data.scoreYearConfig.rpCalendarYears?.join(", ")}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">GO Graduating Years:</span>
+                <span className="font-semibold text-slate-800 font-mono">{data.scoreYearConfig.goGraduationYears?.join(", ")}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">Active Intake Cohorts:</span>
+                <span className="font-semibold text-slate-800 font-mono">{data.scoreYearConfig.applicableCohorts?.join(", ")}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">Financial Period:</span>
+                <span className="font-semibold text-slate-800 font-mono">3 FYs ({data.scoreYearConfig.financialYears?.[0]} to {data.scoreYearConfig.financialYears?.[data.scoreYearConfig.financialYears.length - 1]})</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Department Simulator Banner */}
         <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#1D4ED8]" />
@@ -448,13 +510,19 @@ export default function MetricComputationPage() {
             <div className="my-2">
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold font-mono text-[#1D4ED8]">
-                  {data?.overallIndicativeScore !== null ? Number(data?.overallIndicativeScore).toFixed(2) : "—"}
+                  {data?.overallIndicativeScore !== null
+                    ? Number(data?.overallIndicativeScore).toFixed(2)
+                    : data?.partialWeightedSubtotal !== null && data?.partialWeightedSubtotal !== undefined
+                    ? `${Number(data.partialWeightedSubtotal).toFixed(2)}*`
+                    : "—"}
                 </span>
                 <span className="text-xs text-slate-400 font-semibold">/ 100</span>
               </div>
               <div className="text-[11px] text-slate-500">
                 {data?.counts && data.counts.computed === data.counts.total
                   ? "Full 5-parameter departmental score"
+                  : data?.partialWeightedSubtotal !== null && data?.partialWeightedSubtotal !== undefined
+                  ? `*Partial weighted subtotal (${data?.counts?.computed || 0} of ${data?.counts?.total || 17} metrics, unscaled)`
                   : `Partial subtotal (${data?.counts?.computed || 0} of ${data?.counts?.total || 17} metrics)`}
               </div>
             </div>

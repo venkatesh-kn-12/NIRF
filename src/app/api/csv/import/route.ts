@@ -12,6 +12,9 @@ import { ProjectConsultancy } from "@/models/ProjectConsultancy";
 import { PlacementRecord } from "@/models/PlacementRecord";
 import { GraduationOutcome } from "@/models/GraduationOutcome";
 import { DoctoralAward } from "@/models/DoctoralAward";
+import { SanctionedIntake } from "@/models/SanctionedIntake";
+import { OutreachRecord } from "@/models/OutreachRecord";
+import { PerceptionRecord } from "@/models/PerceptionRecord";
 import {
   studentSchema,
   facultySchema,
@@ -22,6 +25,9 @@ import {
   placementSchema,
   graduationOutcomeSchema,
   doctoralAwardSchema,
+  sanctionedIntakeSchema,
+  outreachSchema,
+  perceptionSchema,
 } from "@/validators";
 
 export async function POST(req: NextRequest) {
@@ -62,6 +68,14 @@ export async function POST(req: NextRequest) {
     };
 
     const targetModule = moduleName.toLowerCase();
+
+    // Strict Admin check for intake mutations
+    if (targetModule === "intake" && !hasRole(user.role, ["DEPARTMENT_ADMIN"])) {
+      return NextResponse.json(
+        { error: "Forbidden. Only Department Admin is authorized to import or mutate sanctioned intake records." },
+        { status: 403 }
+      );
+    }
 
     for (let i = 0; i < rows.length; i++) {
       const rawRow = rows[i];
@@ -596,6 +610,231 @@ export async function POST(req: NextRequest) {
             }
 
             const doc = await DoctoralAward.create({
+              ...parsed.data,
+              department: "MCA",
+              status: "RECORDED",
+              createdBy: user._id,
+              updatedBy: user._id,
+            });
+            results.imported++;
+            results.savedIds.push(doc._id.toString());
+            break;
+          }
+
+          case "intake": {
+            const prog = (rawRow.programme || "MCA").toString().trim();
+            const intakeYr = Number(rawRow.intakeYear) || (rawRow.cohortYear ? parseInt(rawRow.cohortYear.toString().split("-")[0]) : 2024);
+            const cohortYr = (rawRow.cohortYear || `${intakeYr}-${intakeYr + 2}`).toString().trim();
+            const approvedCount = Number(rawRow.approvedIntake) || 60;
+            const auth = (rawRow.approvalAuthority || "AICTE").toString().trim().toUpperCase();
+            const orderNo = (rawRow.approvalOrderNumber || "EOA-REF").toString().trim();
+            const appDate = rawRow.approvalDate ? new Date(rawRow.approvalDate) : undefined;
+            const effYear = (rawRow.effectiveAcademicYear || `${intakeYr}-${String(intakeYr + 1).slice(-2)}`).toString().trim();
+            const scp = (rawRow.scope || "DEPARTMENT").toString().trim().toUpperCase();
+
+            const existingIntake = await SanctionedIntake.findOne({
+              department: "MCA",
+              intakeYear: intakeYr,
+            });
+
+            if (existingIntake) {
+              // Multi-cohort intake tracking without overwriting past history: append to revisions
+              existingIntake.revisions.push({
+                approvedIntake: existingIntake.approvedIntake,
+                approvalOrderNumber: existingIntake.approvalOrderNumber,
+                revisedAt: new Date(),
+                revisedBy: user._id as any,
+                reason: rawRow.reason || "Sanctioned Intake revised via batch CSV import",
+              });
+              existingIntake.approvedIntake = approvedCount;
+              existingIntake.approvalOrderNumber = orderNo;
+              if (appDate) existingIntake.approvalDate = appDate;
+              existingIntake.effectiveAcademicYear = effYear;
+              existingIntake.updatedBy = user._id;
+              await existingIntake.save();
+
+              results.imported++;
+              results.savedIds.push(existingIntake._id.toString());
+              break;
+            }
+
+            const parsed = sanctionedIntakeSchema.safeParse({
+              programme: prog,
+              cohortYear: cohortYr,
+              intakeYear: intakeYr,
+              approvedIntake: approvedCount,
+              approvalAuthority: auth,
+              approvalOrderNumber: orderNo,
+              approvalDate: appDate,
+              effectiveAcademicYear: effYear,
+              scope: scp,
+              department: "MCA",
+              status: "RECORDED",
+            });
+
+            if (!parsed.success) {
+              results.errors.push({
+                row: rowNum,
+                error: parsed.error.issues.map((err) => `${err.path.join(".")}: ${err.message}`).join("; "),
+                data: rawRow,
+              });
+              continue;
+            }
+
+            const doc = await SanctionedIntake.create({
+              ...parsed.data,
+              department: "MCA",
+              status: "RECORDED",
+              createdBy: user._id,
+              updatedBy: user._id,
+            });
+            results.imported++;
+            results.savedIds.push(doc._id.toString());
+            break;
+          }
+
+          case "outreach": {
+            const rawRecType = (rawRow.recordType || "FEE_SUPPORT").toString().trim().toUpperCase();
+            const recType = rawRecType.includes("ACC")
+              ? "ACCESSIBILITY"
+              : rawRecType.includes("REG")
+              ? "REGIONAL_DIVERSITY"
+              : rawRecType.includes("GEN")
+              ? "GENDER_DIVERSITY"
+              : "FEE_SUPPORT";
+
+            const studentRef = rawRow.studentReference ? rawRow.studentReference.toString().trim() : undefined;
+            const isFullTuition = rawRow.isFullTuitionSupport !== undefined
+              ? String(rawRow.isFullTuitionSupport).toLowerCase() === "true"
+              : true;
+            const sponsoringAgency = rawRow.sponsoringAgency ? rawRow.sponsoringAgency.toString().trim() : "";
+            const facilityId = rawRow.facilityId ? rawRow.facilityId.toString().trim() : undefined;
+            const facilityName = rawRow.facilityName ? rawRow.facilityName.toString().trim() : undefined;
+            const facilityStatus = (rawRow.facilityStatus || "AVAILABLE").toString().trim().toUpperCase();
+
+            // Deduplication for individual fee support by studentReference
+            if (recType === "FEE_SUPPORT" && studentRef) {
+              const existing = await OutreachRecord.findOne({
+                department: "MCA",
+                recordType: "FEE_SUPPORT",
+                studentReference: studentRef,
+              });
+              if (existing) {
+                results.skippedDuplicates++;
+                continue;
+              }
+            }
+
+            // Deduplication for accessibility facilityId
+            if (recType === "ACCESSIBILITY" && facilityId) {
+              const existing = await OutreachRecord.findOne({
+                department: "MCA",
+                recordType: "ACCESSIBILITY",
+                facilityId,
+              });
+              if (existing) {
+                existing.facilityStatus = facilityStatus as any;
+                if (facilityName) existing.facilityName = facilityName;
+                if (rawRow.notes) existing.notes = rawRow.notes;
+                existing.updatedBy = user._id;
+                await existing.save();
+                results.imported++;
+                results.savedIds.push(existing._id.toString());
+                break;
+              }
+            }
+
+            const parsed = outreachSchema.safeParse({
+              recordType: recType,
+              aggregateCount: Number(rawRow.aggregateCount) || 1,
+              totalEligiblePopulation: Number(rawRow.totalEligiblePopulation) || 120,
+              supportingDocument: rawRow.supportingDocument || "",
+              studentReference: studentRef,
+              isFullTuitionSupport: isFullTuition,
+              sponsoringAgency,
+              facilityId,
+              facilityName,
+              facilityStatus: ["AVAILABLE", "NOT_AVAILABLE", "NOT_APPLICABLE"].includes(facilityStatus) ? facilityStatus : "AVAILABLE",
+              notes: rawRow.notes || "",
+              academicYear: rawRow.academicYear || "2024-25",
+              department: "MCA",
+              status: "RECORDED",
+            });
+
+            if (!parsed.success) {
+              results.errors.push({
+                row: rowNum,
+                error: parsed.error.issues.map((err) => `${err.path.join(".")}: ${err.message}`).join("; "),
+                data: rawRow,
+              });
+              continue;
+            }
+
+            const doc = await OutreachRecord.create({
+              ...parsed.data,
+              department: "MCA",
+              status: "RECORDED",
+              createdBy: user._id,
+              updatedBy: user._id,
+            });
+            results.imported++;
+            results.savedIds.push(doc._id.toString());
+            break;
+          }
+
+          case "perception": {
+            const rawSrc = (rawRow.sourceType || "DEPARTMENT_SURVEY").toString().trim().toUpperCase();
+            const srcType = rawSrc.includes("OFFICIAL")
+              ? "OFFICIAL_SCORE"
+              : rawSrc.includes("FEEDBACK")
+              ? "INTERNAL_FEEDBACK"
+              : "DEPARTMENT_SURVEY";
+
+            const respId = rawRow.responseId ? rawRow.responseId.toString().trim() : undefined;
+            const ratingVal = rawRow.rating !== undefined ? Number(rawRow.rating) : undefined;
+            const scoreVal = Number(rawRow.score) || (ratingVal !== undefined ? ratingVal : 0);
+            const cycle = (rawRow.surveyCycle || rawRow.surveyOrReferencePeriod || "2024-25").toString().trim();
+            const respCat = (rawRow.respondentCategory || "ACADEMIC_PEER").toString().trim().toUpperCase();
+
+            // Deduplication by responseId
+            if (respId) {
+              const existing = await PerceptionRecord.findOne({
+                department: "MCA",
+                responseId: respId,
+              });
+              if (existing) {
+                results.skippedDuplicates++;
+                continue;
+              }
+            }
+
+            const parsed = perceptionSchema.safeParse({
+              sourceType: srcType,
+              score: scoreVal,
+              maximumScore: Number(rawRow.maximumScore) || (srcType === "DEPARTMENT_SURVEY" ? 5 : 100),
+              surveyOrReferencePeriod: cycle,
+              sourceDocument: rawRow.sourceDocument || "",
+              remarks: rawRow.remarks || "",
+              respondentCategory: ["EMPLOYER", "ACADEMIC_PEER", "ALUMNI", "PARENT", "OTHER"].includes(respCat) ? respCat : "ACADEMIC_PEER",
+              responseId: respId,
+              rating: ratingVal,
+              ratingScale: rawRow.ratingScale || "1-5",
+              surveyCycle: cycle,
+              academicYear: rawRow.academicYear || cycle,
+              department: "MCA",
+              status: "RECORDED",
+            });
+
+            if (!parsed.success) {
+              results.errors.push({
+                row: rowNum,
+                error: parsed.error.issues.map((err) => `${err.path.join(".")}: ${err.message}`).join("; "),
+                data: rawRow,
+              });
+              continue;
+            }
+
+            const doc = await PerceptionRecord.create({
               ...parsed.data,
               department: "MCA",
               status: "RECORDED",

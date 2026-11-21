@@ -8,6 +8,7 @@ import {
   RecordServiceError,
 } from "@/services/departmentRecordService";
 import { extractTokenFromRequest, getSessionUser } from "@/lib/auth";
+import { hasRole } from "@/lib/rbac";
 
 export async function GET(
   req: NextRequest,
@@ -41,6 +42,13 @@ export async function PUT(
     const authData = await getSessionUser(token);
     if (!authData) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
 
+    if (!hasRole(authData.user.role, ["DEPARTMENT_ADMIN"])) {
+      return NextResponse.json(
+        { error: "Forbidden. Only Department Admin can archive or delete sanctioned intake records." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const updated = await updateRecord(
       SanctionedIntake,
@@ -71,6 +79,13 @@ export async function DELETE(
     if (!token) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     const authData = await getSessionUser(token);
     if (!authData) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+
+    if (!hasRole(authData.user.role, ["DEPARTMENT_ADMIN"])) {
+      return NextResponse.json(
+        { error: "Forbidden. Only Department Admin can archive or delete sanctioned intake records." },
+        { status: 403 }
+      );
+    }
 
     const result = await deleteRecord(SanctionedIntake, "SanctionedIntake", id, authData.user, req);
     return NextResponse.json(result);

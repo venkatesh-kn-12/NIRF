@@ -220,7 +220,13 @@ export async function runDeterministicMetricComputation(
   }
 
   const isOverallComputed = counts.awaitingSource === 0 && counts.notComputable === 0 && counts.pendingInput === 0;
-  const overallStatus = isOverallComputed ? "COMPUTED" : "AWAITING_SOURCE";
+  const overallStatus: MetricCalculationStatus = isOverallComputed
+    ? "COMPUTED"
+    : counts.pendingInput > 0
+    ? "PENDING_INPUT"
+    : "AWAITING_SOURCE";
+
+  const partialWeightedSubtotal = Math.round(totalComputedWeightedSum * 100) / 100;
 
   // Persist overall aggregate indicator
   const overallDoc = await MetricResult.create({
@@ -237,16 +243,24 @@ export async function runDeterministicMetricComputation(
       normalisedScore: isOverallComputed ? overallIndicativeScore : null,
       weightedScore: isOverallComputed ? overallIndicativeScore : null,
       maxMarks: 100,
+      partialWeightedSubtotal,
       trace: {
         formula: "Total = (TLR * 0.30) + (RP * 0.30) + (GO * 0.20) + (OI * 0.10) + (PR * 0.10)",
-        steps: Object.entries(parameterScores).map(([key, data]) => ({
-          step: `${key} Component`,
-          expression: `${data.rawScore} * ${data.weight}`,
-          value: data.weightedScore,
-        })),
+        steps: [
+          ...Object.entries(parameterScores).map(([key, data]) => ({
+            step: `${key} Component (Weight ${data.weight})`,
+            expression: data.rawScore !== null ? `${data.rawScore} × ${data.weight}` : `${data.status}`,
+            value: data.weightedScore !== null ? data.weightedScore : "UNCOMPUTED",
+          })),
+          {
+            step: "Partial Weighted Subtotal",
+            expression: `Sum of available weighted components`,
+            value: partialWeightedSubtotal,
+          },
+        ],
         notes: isOverallComputed
-          ? "Complete NIRF Engineering 2025 metric score."
-          : `Partial indicative calculation: ${counts.awaitingSource} awaiting external sources, ${counts.notComputable} non-computable. Final score null under Zero Estimation Policy.`,
+          ? "Complete MCA Departmental NIRF-inspired simulation score."
+          : `Partial indicative calculation: ${counts.pendingInput} pending inputs, ${counts.awaitingSource} awaiting external sources, ${counts.notComputable} non-computable. Partial weighted subtotal: ${partialWeightedSubtotal} / 100. Authoritative overall score remains null under Zero Estimation Policy without weight renormalisation.`,
       },
     },
     status: overallStatus,

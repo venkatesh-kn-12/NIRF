@@ -152,10 +152,17 @@ export interface ResolvedMetricInputs {
     homeStateCount: number;
     otherStatesCount: number;
     internationalCount: number;
+    unknownDomicileCount: number;
     womenStudentsCount: number;
+    menStudentsCount: number;
+    unknownGenderStudentsCount: number;
     womenStudentsPercentage: number;
     economicallyChallengedCount: number;
     feeReimbursementPercentage: number;
+    fullTuitionSupportedStudentsCount: number;
+    hasFacilityChecklist: boolean;
+    availableFacilitiesCount: number;
+    applicableFacilitiesCount: number;
     physicallyChallengedFacilitiesVerified: boolean;
     physicallyChallengedFacilityScore: number; // 0 to 20
   };
@@ -164,6 +171,10 @@ export interface ResolvedMetricInputs {
   perceptionStats: {
     hasOfficialScore: boolean;
     officialScore: number | null;
+    hasSurveyResponses: boolean;
+    surveyResponseCount: number;
+    surveyMeanRating: number;
+    configuredModel?: string;
   };
 }
 
@@ -232,11 +243,22 @@ export async function resolveApprovedMetricInputs(
   let approvedIntake = 0;
   let intakeSource: "SANCTIONED_INTAKE_RECORDS" | "DEPARTMENT_CONFIG_FALLBACK" = "DEPARTMENT_CONFIG_FALLBACK";
 
+  const baseYearMatch = academicYear.match(/^(\d{4})/);
+  const baseYear = baseYearMatch ? parseInt(baseYearMatch[1], 10) : 2024;
+
   if (sanctionedIntakeRecords.length > 0) {
     intakeSource = "SANCTIONED_INTAKE_RECORDS";
-    // In MCA standard 2-year cohort, sum latest 2 cohorts active in the reporting year
-    const activeCohorts = sanctionedIntakeRecords.slice(0, 2);
-    approvedIntake = activeCohorts.reduce((acc, r) => acc + (r.approvedIntake || 0), 0);
+    // For MCA 2-year PG, match the 2 active cohorts: intakeYear (1st yr) and intakeYear - 1 (2nd yr)
+    const matchedFirstYear = sanctionedIntakeRecords.find((r) => r.intakeYear === baseYear);
+    const matchedSecondYear = sanctionedIntakeRecords.find((r) => r.intakeYear === baseYear - 1);
+
+    if (matchedFirstYear && matchedSecondYear) {
+      approvedIntake = (matchedFirstYear.approvedIntake || 0) + (matchedSecondYear.approvedIntake || 0);
+    } else {
+      // In MCA standard 2-year cohort, sum latest 2 cohorts active in the reporting year
+      const activeCohorts = sanctionedIntakeRecords.slice(0, 2);
+      approvedIntake = activeCohorts.reduce((acc, r) => acc + (r.approvedIntake || 0), 0);
+    }
   } else {
     approvedIntake = deptConfig?.sanctionedIntake || 120;
     studentBlockers.push("SANCTIONED_INTAKE_STATIC_FALLBACK: Using DepartmentConfig static intake instead of approved cohort-wise EOA records");
@@ -263,7 +285,10 @@ export async function resolveApprovedMetricInputs(
   let otherStatesCount = 0;
   let internationalCount = 0;
   let homeStateCount = 0;
+  let unknownDomicileCount = 0;
   let womenStudentsCount = 0;
+  let menStudentsCount = 0;
+  let unknownGenderStudentsCount = 0;
 
   for (const s of students) {
     const prog = (s.programme || "").toUpperCase();
@@ -273,11 +298,23 @@ export async function resolveApprovedMetricInputs(
       enrolledStudents++;
     }
 
-    if (s.domicileType === "OTHER_STATE") otherStatesCount++;
-    else if (s.domicileType === "INTERNATIONAL") internationalCount++;
-    else homeStateCount++;
+    const rawDom = (s.domicileType || (s as any).stateType || "").toString().toUpperCase();
+    if (rawDom.includes("INT")) {
+      internationalCount++;
+    } else if (rawDom.includes("OTHER")) {
+      otherStatesCount++;
+    } else if (rawDom.includes("HOME") || (s as any).domicileState === "Karnataka" || (s as any).domicileState === deptConfig?.homeState) {
+      homeStateCount++;
+    } else if (!rawDom && !(s as any).domicileState) {
+      unknownDomicileCount++;
+    } else {
+      homeStateCount++;
+    }
 
-    if (s.gender === "FEMALE") womenStudentsCount++;
+    const g = (s.gender || "").toUpperCase();
+    if (g === "FEMALE" || g === "F") womenStudentsCount++;
+    else if (g === "MALE" || g === "M") menStudentsCount++;
+    else unknownGenderStudentsCount++;
   }
 
   if (enrolledStudents === 0 && phdEnrolled === 0 && totalApprovedStudents > 0) {
@@ -745,37 +782,95 @@ export async function resolveApprovedMetricInputs(
   const hasZeroDoctoralConflict = isZeroDoctoralDeclared && doctoralAwardsInWindow > 0;
 
   // 7. Outreach Diversity (ESCS, PCS)
-  let economicallyChallengedCount = 0;
-  let physicallyChallengedFacilityScore = 0;
-  let physicallyChallengedFacilitiesVerified = false;
+  const fullTuitionStudents = new Set<string>();
+  let aggregateFeeSupportCount = 0;
 
-  for (const o of outreach) {
-    if (o.recordType === "FEE_SUPPORT") {
-      economicallyChallengedCount += o.aggregateCount || 0;
-    }
-    if (o.recordType === "ACCESSIBILITY") {
-      physicallyChallengedFacilitiesVerified = true;
-      physicallyChallengedFacilityScore = Math.min(20, o.aggregateCount > 0 ? 20 : 10);
+  for (const s of students) {
+    if ((s as any).tuitionFeeReimbursed === true) {
+      fullTuitionStudents.add(s.studentId || (s as any).prn || s._id.toString());
     }
   }
 
+  for (const o of outreach) {
+    if (o.recordType === "FEE_SUPPORT") {
+      if (o.studentReference && o.isFullTuitionSupport !== false) {
+        fullTuitionStudents.add(o.studentReference);
+      } else if (o.aggregateCount > 0) {
+        aggregateFeeSupportCount += o.aggregateCount;
+      }
+    }
+  }
+
+  const fullTuitionSupportedStudentsCount = Math.max(fullTuitionStudents.size, aggregateFeeSupportCount);
+  const economicallyChallengedCount = fullTuitionSupportedStudentsCount;
   const feeReimbursementPercentage =
     totalApprovedStudents > 0
-      ? Math.round((economicallyChallengedCount / totalApprovedStudents) * 1000) / 10
+      ? Math.round((fullTuitionSupportedStudentsCount / totalApprovedStudents) * 1000) / 10
       : 0;
+
+  // PCS Campus Accessibility Checklist
+  let hasFacilityChecklist = false;
+  let availableFacilitiesCount = 0;
+  let notApplicableFacilitiesCount = 0;
+  const standardFacilityKeys = [
+    "ramps_walkways",
+    "lifts_elevators",
+    "accessible_toilets",
+    "assistive_tech_labs",
+    "directional_signage",
+  ];
+
+  const accessibilityRecords = outreach.filter((o) => o.recordType === "ACCESSIBILITY");
+  if (accessibilityRecords.length > 0) {
+    hasFacilityChecklist = true;
+    for (const rec of accessibilityRecords) {
+      if (rec.facilityStatus === "AVAILABLE" || (rec.aggregateCount && rec.aggregateCount > 0)) {
+        availableFacilitiesCount++;
+      } else if (rec.facilityStatus === "NOT_APPLICABLE") {
+        notApplicableFacilitiesCount++;
+      }
+    }
+    if (accessibilityRecords.some((r) => r.aggregateCount && r.aggregateCount >= 20)) {
+      availableFacilitiesCount = 5;
+    }
+  } else if (deptConfig?.facilityChecklist) {
+    const chk = deptConfig.facilityChecklist;
+    const hasAnyTrue = standardFacilityKeys.some((k) => Boolean((chk as any)[k]));
+    if (hasAnyTrue) {
+      hasFacilityChecklist = true;
+      availableFacilitiesCount = standardFacilityKeys.filter((k) => Boolean((chk as any)[k])).length;
+    }
+  }
+
+  const applicableFacilitiesCount = Math.max(1, 5 - notApplicableFacilitiesCount);
+  const physicallyChallengedFacilityScore = hasFacilityChecklist
+    ? Math.round((availableFacilitiesCount / applicableFacilitiesCount) * 20 * 100) / 100
+    : 0;
+  const physicallyChallengedFacilitiesVerified = hasFacilityChecklist && availableFacilitiesCount > 0;
 
   // 8. Perception (PR)
   let hasOfficialScore = false;
   let officialScore: number | null = null;
-  if (perceptions.length > 0) {
-    for (const pr of perceptions) {
-      if (pr.score !== undefined && pr.score !== null) {
-        hasOfficialScore = true;
-        officialScore = pr.score;
-        break;
-      }
+  const surveyRatings: number[] = [];
+
+  for (const pr of perceptions) {
+    if (pr.sourceType === "OFFICIAL_SCORE" && pr.score !== undefined && pr.score !== null) {
+      hasOfficialScore = true;
+      officialScore = pr.score;
+    } else if (pr.rating !== undefined && pr.rating !== null && pr.rating >= 1 && pr.rating <= 5) {
+      surveyRatings.push(pr.rating);
+    } else if (pr.sourceType === "DEPARTMENT_SURVEY" && pr.score !== undefined && pr.score >= 1 && pr.score <= 5) {
+      surveyRatings.push(pr.score);
+    } else if (pr.sourceType === "INTERNAL_FEEDBACK" && pr.score !== undefined && pr.score >= 1 && pr.score <= 5) {
+      surveyRatings.push(pr.score);
     }
   }
+
+  const hasSurveyResponses = surveyRatings.length > 0;
+  const surveyResponseCount = surveyRatings.length;
+  const surveyMeanRating = hasSurveyResponses
+    ? Math.round((surveyRatings.reduce((a, b) => a + b, 0) / surveyRatings.length) * 100) / 100
+    : 0;
 
   // Build immutable snapshot object
   const rawSnapshot = {
@@ -947,16 +1042,26 @@ export async function resolveApprovedMetricInputs(
       homeStateCount,
       otherStatesCount,
       internationalCount,
+      unknownDomicileCount,
       womenStudentsCount,
+      menStudentsCount,
+      unknownGenderStudentsCount,
       womenStudentsPercentage,
       economicallyChallengedCount,
       feeReimbursementPercentage,
+      fullTuitionSupportedStudentsCount,
+      hasFacilityChecklist,
+      availableFacilitiesCount,
+      applicableFacilitiesCount,
       physicallyChallengedFacilitiesVerified,
       physicallyChallengedFacilityScore,
     },
     perceptionStats: {
       hasOfficialScore,
       officialScore,
+      hasSurveyResponses,
+      surveyResponseCount,
+      surveyMeanRating,
     },
   };
 }
