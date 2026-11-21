@@ -47,8 +47,16 @@ export const commonRecordFieldsDefinition: Record<string, any> = {
   status: {
     type: String,
     required: true,
-    enum: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "CORRECTION_REQUESTED"],
-    default: "DRAFT",
+    enum: [
+      "DRAFT",
+      "RECORDED",
+      "ARCHIVED",
+      "SUBMITTED",
+      "APPROVED",
+      "REJECTED",
+      "CORRECTION_REQUESTED",
+    ],
+    default: "RECORDED",
     index: true,
   },
   createdBy: {

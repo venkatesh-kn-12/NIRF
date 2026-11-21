@@ -9,15 +9,6 @@ const nextConfig = {
     "localhost:3000",
     "127.0.0.1:3000",
   ],
-  experimental: {
-    allowedDevOrigins: [
-      "*.devtunnels.ms",
-      "*.trycloudflare.com",
-      "*.loca.lt",
-      "localhost:3000",
-      "127.0.0.1:3000",
-    ],
-  },
 };
 
 export default nextConfig;

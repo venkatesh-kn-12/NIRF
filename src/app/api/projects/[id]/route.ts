@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProjectConsultancy } from "@/models/ProjectConsultancy";
-import { projectConsultancyUpdateSchema, reviewDecisionSchema } from "@/validators";
+import { projectConsultancyUpdateSchema } from "@/validators";
 import {
   getRecordById,
   updateRecord,
   deleteRecord,
-  reviewRecord,
+  archiveRecord,
+  restoreRecord,
   RecordServiceError,
 } from "@/services/departmentRecordService";
 import { extractTokenFromRequest, getSessionUser } from "@/lib/auth";
@@ -89,24 +90,28 @@ export async function PATCH(
     if (!authData) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
 
     const body = await req.json();
-    const parsed = reviewDecisionSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid decision", details: parsed.error.format() }, { status: 400 });
+
+    if (body?.action === "archive") {
+      const res = await archiveRecord(ProjectConsultancy, "ProjectConsultancy", id, authData.user, req);
+      return NextResponse.json(res);
+    }
+    if (body?.action === "restore") {
+      const res = await restoreRecord(ProjectConsultancy, "ProjectConsultancy", id, authData.user, req);
+      return NextResponse.json(res);
     }
 
-    const updated = await reviewRecord(
+    // Default: update partial fields if no action specified
+    const updated = await updateRecord(
       ProjectConsultancy,
       "ProjectConsultancy",
       id,
-      parsed.data.decision,
-      parsed.data.comment,
+      body,
+      projectConsultancyUpdateSchema,
       authData.user,
       req
     );
-
-    return NextResponse.json({ success: true, record: updated });
+    return NextResponse.json({ success: true, message: "Project record updated", record: updated });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: error.statusCode || 500 });
   }
 }
-

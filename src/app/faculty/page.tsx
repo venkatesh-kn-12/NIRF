@@ -22,7 +22,9 @@ import {
   Paperclip,
   Award,
   Briefcase,
+  FileSpreadsheet,
 } from "lucide-react";
+import { CsvImportModal } from "@/components/CsvImportModal";
 
 interface FacultyRecord {
   _id: string;
@@ -98,6 +100,7 @@ export default function FacultyPage() {
 
   // Modal State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState<FacultyRecord | null>(null);
   const [reviewingFaculty, setReviewingFaculty] = useState<FacultyRecord | null>(null);
   const [reviewDecision, setReviewDecision] = useState<"APPROVE" | "REJECT" | "REQUEST_CORRECTION">("APPROVE");
@@ -390,8 +393,17 @@ export default function FacultyPage() {
             </span>
             {canCreate && (
               <button
+                onClick={() => setShowCsvModal(true)}
+                className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3.5 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <FileSpreadsheet size={16} className="text-emerald-600" />
+                Import CSV
+              </button>
+            )}
+            {canCreate && (
+              <button
                 onClick={openAdd}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
               >
                 <Plus size={16} />
                 Add Faculty
@@ -966,6 +978,14 @@ export default function FacultyPage() {
           </div>
         </div>
       )}
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={showCsvModal}
+        onClose={() => setShowCsvModal(false)}
+        moduleName="faculty"
+        moduleTitle="Faculty"
+        onImportSuccess={fetchFaculty}
+      />
     </div>
   );
 }

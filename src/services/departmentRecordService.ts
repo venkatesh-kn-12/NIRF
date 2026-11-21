@@ -65,22 +65,18 @@ export async function listRecords<T>(
 
   // RBAC query scoping
   if (user.role === "VIEWER") {
-    // VIEWER can ONLY see APPROVED records
-    query.status = "APPROVED";
+    // VIEWER can see RECORDED and legacy APPROVED records
+    if (!query.status) {
+      query.status = { $in: ["RECORDED", "APPROVED"] };
+    }
   } else if (user.role === "FACULTY_CONTRIBUTOR") {
-    // If not explicitly requesting APPROVED records, limit to own, assigned, or approved
-    if (query.status !== "APPROVED") {
-      const existingStatus = query.status;
+    // Contributor can see recorded/approved records, plus their own drafts
+    if (!query.status) {
       query.$or = [
+        { status: { $in: ["RECORDED", "APPROVED"] } },
         { createdBy: user._id },
         { assignedTo: user._id },
-        { status: "APPROVED" },
       ];
-      if (existingStatus) {
-        query.status = existingStatus;
-      } else {
-        delete query.status;
-      }
     }
   }
 
@@ -145,15 +141,29 @@ export async function getRecordById<T>(
   }
 
   // RBAC view verification
-  if (user.role === "VIEWER" && record.status !== "APPROVED") {
-    throw new RecordServiceError("Forbidden. Viewers can only access approved records.", 403);
+  const isPublicActive = record.status === "APPROVED" || record.status === "RECORDED";
+
+  if (user.role === "VIEWER") {
+    if (!isPublicActive) {
+      throw new RecordServiceError("Forbidden. Viewers can only access saved or recorded records.", 403);
+    }
+
+    // Preserve record-type visibility & field-level privacy for VIEWER
+    const collectionName = (model as any).collection?.name || "";
+    if (collectionName === "students") {
+      delete record.dateOfBirth;
+      delete record.email;
+    } else if (collectionName === "financerecords") {
+      delete record.voucherNumber;
+      delete record.vendor;
+    }
   }
 
   if (user.role === "FACULTY_CONTRIBUTOR") {
     const isOwner = record.createdBy?._id?.toString() === user._id.toString();
     const isAssigned = record.assignedTo?._id?.toString() === user._id.toString();
-    if (!isOwner && !isAssigned && record.status !== "APPROVED") {
-      throw new RecordServiceError("Forbidden. You cannot view this unapproved record.", 403);
+    if (!isOwner && !isAssigned && !isPublicActive) {
+      throw new RecordServiceError("Forbidden. You cannot view this draft or archived record.", 403);
     }
   }
 
@@ -189,7 +199,7 @@ export async function createRecord<T>(
   const newRecordData = {
     ...(parsed.data as Record<string, any>),
     department: "MCA", // Strict institutional constraint
-    status: "APPROVED", // Directly active for internal department testing without verification bottleneck
+    status: (parsed.data as any).status === "DRAFT" ? "DRAFT" : "RECORDED",
     createdBy: user._id,
     updatedBy: user._id,
     auditHistory: [
@@ -199,7 +209,7 @@ export async function createRecord<T>(
         performedByEmail: user.email,
         performedByRole: user.role,
         timestamp: new Date(),
-        details: { modelName },
+        details: { modelName, status: (parsed.data as any).status === "DRAFT" ? "DRAFT" : "RECORDED" },
       },
     ],
   };
@@ -258,6 +268,13 @@ export async function updateRecord<T>(
     );
   }
 
+  if (record.status === "ARCHIVED" && user.role !== "DEPARTMENT_ADMIN") {
+    throw new RecordServiceError(
+      "Forbidden. Archived records cannot be edited by faculty contributors.",
+      403
+    );
+  }
+
   if (user.role === "FACULTY_CONTRIBUTOR") {
     const isOwner = record.createdBy.toString() === user._id.toString();
     const isAssigned = record.assignedTo?.toString() === user._id.toString();
@@ -288,15 +305,12 @@ export async function updateRecord<T>(
     performedByEmail: user.email,
     performedByRole: user.role,
     timestamp: new Date(),
-    details: { updatedFields: Object.keys(parsed.data as object) },
+    details: {
+      updatedFields: Object.keys(parsed.data as object),
+    },
   });
 
   await record.save();
-
-  // Run automated verification checks asynchronously (non-blocking)
-  runAutomatedVerificationChecks(modelName, record, user, req).catch((err) =>
-    console.error("[VerificationChecks] Error after update:", err)
-  );
 
   // AuditLog entry
   await logAuditEvent({
@@ -319,6 +333,120 @@ export async function updateRecord<T>(
   return record;
 }
 
+export async function archiveRecord<T>(
+  model: Model<T>,
+  modelName: string,
+  id: string,
+  user: IUser,
+  req?: Request
+) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new RecordServiceError("Invalid record ID", 400);
+  }
+
+  await connectDB();
+  const record: any = await model.findById(id);
+  if (!record) {
+    throw new RecordServiceError("Record not found", 404);
+  }
+
+  // RBAC: Admins can archive any; Contributors can archive own
+  if (user.role === "FACULTY_CONTRIBUTOR") {
+    const isOwner = record.createdBy.toString() === user._id.toString();
+    if (!isOwner) {
+      throw new RecordServiceError("Forbidden. You can only archive your own records.", 403);
+    }
+  } else if (user.role !== "DEPARTMENT_ADMIN") {
+    throw new RecordServiceError("Forbidden. You cannot archive records.", 403);
+  }
+
+  record.status = "ARCHIVED";
+  record.updatedBy = user._id;
+  record.auditHistory.push({
+    action: "RECORD_ARCHIVED",
+    performedBy: user._id,
+    performedByEmail: user.email,
+    performedByRole: user.role,
+    timestamp: new Date(),
+    details: { modelName },
+  });
+
+  await record.save();
+
+  const ipAddress = req ? getClientIp(req) : "127.0.0.1";
+  const userAgent = req ? getClientUserAgent(req) : "Server";
+
+  await logAuditEvent({
+    action: "record update",
+    userId: user._id,
+    userEmail: user.email,
+    userRole: user.role,
+    department: "MCA",
+    resourceType: modelName,
+    resourceId: record._id.toString(),
+    details: { modelName, status: "ARCHIVED" },
+    status: "SUCCESS",
+    ipAddress,
+    userAgent,
+  });
+
+  return { success: true, message: `${modelName} record archived successfully`, record };
+}
+
+export async function restoreRecord<T>(
+  model: Model<T>,
+  modelName: string,
+  id: string,
+  user: IUser,
+  req?: Request
+) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new RecordServiceError("Invalid record ID", 400);
+  }
+
+  if (user.role !== "DEPARTMENT_ADMIN") {
+    throw new RecordServiceError("Forbidden. Only Department Administrators can restore archived records.", 403);
+  }
+
+  await connectDB();
+  const record: any = await model.findById(id);
+  if (!record) {
+    throw new RecordServiceError("Record not found", 404);
+  }
+
+  record.status = "RECORDED";
+  record.updatedBy = user._id;
+  record.auditHistory.push({
+    action: "RECORD_RESTORED",
+    performedBy: user._id,
+    performedByEmail: user.email,
+    performedByRole: user.role,
+    timestamp: new Date(),
+    details: { modelName },
+  });
+
+  await record.save();
+
+  const ipAddress = req ? getClientIp(req) : "127.0.0.1";
+  const userAgent = req ? getClientUserAgent(req) : "Server";
+
+  await logAuditEvent({
+    action: "record update",
+    userId: user._id,
+    userEmail: user.email,
+    userRole: user.role,
+    department: "MCA",
+    resourceType: modelName,
+    resourceId: record._id.toString(),
+    details: { modelName, status: "RECORDED", restored: true },
+    status: "SUCCESS",
+    ipAddress,
+    userAgent,
+  });
+
+  return { success: true, message: `${modelName} record restored to recorded status`, record };
+}
+
 export async function deleteRecord<T>(
   model: Model<T>,
   modelName: string,
@@ -330,10 +458,10 @@ export async function deleteRecord<T>(
     throw new RecordServiceError("Invalid record ID", 400);
   }
 
-  // RBAC: DEPARTMENT_ADMIN and FACULTY_CONTRIBUTOR can delete records
-  if (!hasRole(user.role, ["DEPARTMENT_ADMIN", "FACULTY_CONTRIBUTOR"])) {
+  // RBAC: Only DEPARTMENT_ADMIN can permanently delete records. Contributors archive.
+  if (user.role !== "DEPARTMENT_ADMIN") {
     throw new RecordServiceError(
-      "Forbidden. Only Department Administrators and Contributors can delete records.",
+      "Forbidden. Only Department Administrators can permanently delete records. Contributors can archive records.",
       403
     );
   }
@@ -374,69 +502,11 @@ export async function reviewRecord<T>(
   comment: string,
   user: IUser,
   req?: Request
-) {
-  if (!Types.ObjectId.isValid(id)) {
-    throw new RecordServiceError("Invalid record ID", 400);
-  }
-
-  // RBAC: Only REVIEWER and DEPARTMENT_ADMIN can review records
-  if (!hasRole(user.role, ["DEPARTMENT_ADMIN", "REVIEWER"])) {
-    throw new RecordServiceError(
-      "Forbidden. Only Reviewers and Department Admins can verify records.",
-      403
-    );
-  }
-
-  await connectDB();
-  const record: any = await model.findById(id);
-  if (!record) {
-    throw new RecordServiceError("Record not found", 404);
-  }
-
-  let auditAction: AuditAction;
-  if (decision === "APPROVE") {
-    record.status = "APPROVED";
-    auditAction = "approval";
-  } else if (decision === "REJECT") {
-    record.status = "REJECTED";
-    auditAction = "rejection";
-  } else {
-    record.status = "CORRECTION_REQUESTED";
-    auditAction = "correction request";
-  }
-
-  record.reviewerComment = comment || "";
-  record.updatedBy = user._id;
-
-  record.auditHistory.push({
-    action: `REVIEW_${decision}`,
-    performedBy: user._id,
-    performedByEmail: user.email,
-    performedByRole: user.role,
-    timestamp: new Date(),
-    details: { decision, comment },
-  });
-
-  await record.save();
-
-  const ipAddress = req ? getClientIp(req) : "127.0.0.1";
-  const userAgent = req ? getClientUserAgent(req) : "Server";
-
-  await logAuditEvent({
-    action: auditAction,
-    userId: user._id,
-    userEmail: user.email,
-    userRole: user.role,
-    department: "MCA",
-    resourceType: modelName,
-    resourceId: record._id.toString(),
-    details: { decision, comment, status: record.status },
-    status: "SUCCESS",
-    ipAddress,
-    userAgent,
-  });
-
-  return record;
+): Promise<any> {
+  throw new RecordServiceError(
+    "The operational reviewer/verification workflow has been decommissioned. Department records operate under the direct DRAFT / RECORDED / ARCHIVED lifecycle and are active once RECORDED.",
+    410
+  );
 }
 
 export async function attachEvidence<T>(

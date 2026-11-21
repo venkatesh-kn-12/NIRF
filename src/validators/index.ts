@@ -69,11 +69,27 @@ export const facultyUpdateSchema = facultySchema.partial();
 export const financeSchema = z.object({
   financialYear: z.string().min(4, "Financial year is required (e.g. 2023-24)"),
   expenditureHead: z.string().min(2, "Expenditure head is required"),
+  category: z.string().optional().default(""),
+  subcategory: z.string().optional().default(""),
+  granularity: z.enum(["TRANSACTION", "ANNUAL_AGGREGATE"]).default("ANNUAL_AGGREGATE"),
+  voucherNumber: z.string().optional().default(""),
+  vendor: z.string().optional().default(""),
   amount: z.coerce.number().min(0, "Amount must be positive"),
   currency: z.string().default("INR"),
+  unit: z.enum(["INR", "LAKHS", "CRORES"]).default("INR"),
+  amountInINR: z.coerce.number().min(0).optional().default(0),
+  amountPaise: z.coerce.number().optional(),
+  allocationPercentage: z.coerce.number().min(0).max(100).default(100),
+  allocationBasis: z.string().optional().default("DIRECT_DEPARTMENTAL"),
   expenditureType: z.enum(["CAPITAL", "OPERATIONAL"]),
   purpose: z.string().min(3, "Purpose description is required"),
   supportingDocument: z.string().optional().default(""),
+  isExcluded: z.boolean().default(false),
+  exclusionType: z.enum(["NONE", "BUILDING_CONSTRUCTION", "HOSTEL_MAINTENANCE", "OTHER"]).default("NONE"),
+  exclusionReason: z.string().optional().default(""),
+  reportingScope: z.enum(["DEPARTMENT", "INSTITUTION"]).default("DEPARTMENT"),
+  allocationMethod: z.string().optional().default("DIRECT_DEPARTMENTAL"),
+  matchingStudentDenominator: z.coerce.number().min(1).optional().default(120),
   ...commonFields,
 });
 
@@ -81,19 +97,123 @@ export const financeUpdateSchema = financeSchema.partial();
 export const financeRecordSchema = financeSchema;
 export const financeRecordUpdateSchema = financeUpdateSchema;
 
+// 3a. Sanctioned Intake Schema
+export const sanctionedIntakeSchema = z.object({
+  programme: z.string().default("MCA"),
+  cohortYear: z.string().min(4, "Cohort year is required (e.g. 2024-2026)"),
+  intakeYear: z.coerce.number().min(2000),
+  approvedIntake: z.coerce.number().min(1, "Approved intake must be at least 1"),
+  approvalAuthority: z.enum(["AICTE", "VTU", "STATE_GOVT", "UNIVERSITY", "OTHER"]).default("AICTE"),
+  approvalOrderNumber: z.string().min(2, "Approval order number is required"),
+  approvalDate: z.coerce.date().optional().nullable(),
+  effectiveAcademicYear: z.string().min(4).default("2024-25"),
+  scope: z.enum(["DEPARTMENT", "INSTITUTION"]).default("DEPARTMENT"),
+  ...commonFields,
+});
+export const sanctionedIntakeUpdateSchema = sanctionedIntakeSchema.partial();
+
+// 3b. Doctoral Enrolment Statement Schema
+export const doctoralEnrolmentSchema = z.object({
+  programme: z.string().default("MCA"),
+  enrolledDoctoralCount: z.coerce.number().min(0).default(0),
+  isExplicitZero: z.boolean().default(true),
+  zeroDeclarationReason: z.string().optional().default(""),
+  scholars: z
+    .array(
+      z.object({
+        scholarName: z.string().min(1),
+        usn: z.string().min(1),
+        registrationDate: z.coerce.date(),
+        guideName: z.string().min(1),
+        researchTopic: z.string().optional().default(""),
+        enrolmentStatus: z.enum(["FULL_TIME", "PART_TIME", "COMPLETED", "DISCONTINUED"]).default("FULL_TIME"),
+      })
+    )
+    .default([]),
+  certifiedByHOD: z.boolean().default(true),
+  certificationReference: z.string().optional().default(""),
+  ...commonFields,
+});
+export const doctoralEnrolmentUpdateSchema = doctoralEnrolmentSchema.partial();
+
+// 3c. Faculty Reporting Fact Schema
+export const facultyReportingFactSchema = z.object({
+  faculty: z.string().min(1, "Faculty reference is required"),
+  facultyId: z.string().min(1, "Faculty ID is required"),
+  name: z.string().min(1, "Faculty name is required"),
+  email: z.string().email(),
+  designation: z.string().min(1),
+  employmentType: z.enum(["PERMANENT", "CONTRACT", "VISITING", "ADJUNCT"]).default("PERMANENT"),
+  isFullTime: z.boolean().default(true),
+  taughtBothSemesters: z.boolean().default(true),
+  highestQualification: z.string().min(1),
+  phdStatus: z.enum(["AWARDED", "PURSUING", "NOT_APPLICABLE"]).default("NOT_APPLICABLE"),
+  isQualificationEligible: z.boolean().default(true),
+  qualificationEquivalenceNotes: z.string().optional().default(""),
+  experienceYearsAsOfReferenceDate: z.coerce.number().min(0).default(0),
+  experienceReferenceDate: z.coerce.date().default(() => new Date("2024-08-31")),
+  experienceBracket: z.enum(["UP_TO_8", "EIGHT_TO_15", "ABOVE_15"]).default("UP_TO_8"),
+  isEligibleForFSR: z.boolean().default(true),
+  eligibilityRationale: z.string().optional().default(""),
+  ...commonFields,
+});
+export const facultyReportingFactUpdateSchema = facultyReportingFactSchema.partial();
+
 // 4. Publication Schema
+export const publicationAuthorSchema = z.object({
+  authorName: z.string().min(1, "Author name is required"),
+  authorOrder: z.coerce.number().min(1).default(1),
+  facultyRef: z.string().optional().nullable(),
+  facultyId: z.string().optional().default(""),
+  affiliation: z.string().optional().default(""),
+  isCorresponding: z.boolean().optional().default(false),
+  orcid: z.string().optional().default(""),
+});
+
+export const publicationIndexingSchema = z.object({
+  sourceName: z.enum(["SCOPUS", "WEB_OF_SCIENCE", "UGC_CARE", "OTHER", "UNKNOWN"]).default("SCOPUS"),
+  recordId: z.string().optional().default(""),
+  url: z.string().optional().default(""),
+  referenceYear: z.coerce.number().optional().nullable(),
+  provenance: z.enum(["SELF_REPORTED", "DOCUMENT_SUPPORTED", "EXTERNAL_SOURCE"]).default("DOCUMENT_SUPPORTED"),
+  retrievedAt: z.coerce.date().optional().nullable(),
+});
+
+export const publicationQuartileSchema = z.object({
+  quartile: z.enum(["Q1", "Q2", "Q3", "Q4", "UNKNOWN", "NOT_APPLICABLE"]).default("UNKNOWN"),
+  source: z.string().optional().default(""),
+  year: z.coerce.number().optional().nullable(),
+  subjectCategory: z.string().optional().default(""),
+});
+
 export const publicationSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
-  authors: z.array(z.string()).min(1, "At least one author required"),
+  authors: z.array(z.string()).min(1, "At least one author required").default(["Author"]),
+  authorsList: z.array(publicationAuthorSchema).optional().default([]),
   doi: z.string().optional().default(""),
   url: z.string().url("Must be valid URL").optional().or(z.literal("")),
-  publicationType: z.enum(["JOURNAL", "CONFERENCE", "BOOK_CHAPTER", "OTHER"]).default("JOURNAL"),
+  publicationType: z.enum(["JOURNAL", "CONFERENCE", "BOOK_CHAPTER", "OTHER", "UNKNOWN"]).default("JOURNAL"),
+  pubStatus: z.enum(["PUBLISHED", "ACCEPTED_IN_PRESS", "UNDER_REVIEW", "PREPRINT"]).default("PUBLISHED"),
   journalOrConference: z.string().min(2, "Journal or Conference name required"),
-  publicationDate: z.coerce.date(),
-  indexing: z.enum(["SCOPUS", "WEB_OF_SCIENCE", "UGC_CARE", "OTHER"]),
+  publisher: z.string().optional().default(""),
+  volume: z.string().optional().default(""),
+  issue: z.string().optional().default(""),
+  pages: z.string().optional().default(""),
+  issnOrIsbn: z.string().optional().default(""),
+  publicationDate: z.coerce.date().optional().default(() => new Date()),
+  publicationYear: z.coerce.number().optional().default(() => new Date().getFullYear()),
+  publicationMonth: z.coerce.number().optional().nullable(),
+  exactPublicationDate: z.coerce.date().optional().nullable(),
+  datePrecision: z.enum(["YEAR", "MONTH", "DAY"]).default("YEAR"),
+  indexing: z.enum(["SCOPUS", "WEB_OF_SCIENCE", "UGC_CARE", "OTHER"]).default("SCOPUS"),
+  indexingList: z.array(publicationIndexingSchema).optional().default([]),
+  quartiles: z.array(publicationQuartileSchema).optional().default([]),
   citationCount: z.coerce.number().min(0).default(0),
   citationSource: z.string().default("Scopus"),
   citationRetrievedAt: z.coerce.date().optional().nullable(),
+  internalFaculty: z.array(z.string()).optional().default([]),
+  claimedBy: z.string().optional().nullable(),
+  claimedAt: z.coerce.date().optional().nullable(),
   affiliationEvidence: z.string().optional().default("DSATM MCA Verified"),
   retractionStatus: z.boolean().default(false),
   ...commonFields,
@@ -102,32 +222,67 @@ export const publicationSchema = z.object({
 export const publicationUpdateSchema = publicationSchema.partial();
 
 // 5. Patent Schema
+export const patentInventorSchema = z.object({
+  name: z.string().min(1, "Inventor name is required"),
+  order: z.coerce.number().min(1).default(1),
+  facultyRef: z.string().optional().nullable(),
+  facultyId: z.string().optional().default(""),
+  affiliation: z.string().optional().default(""),
+});
+
 export const patentSchema = z.object({
   title: z.string().min(3, "Patent title is required"),
   applicationNumber: z.string().min(3, "Application number is required"),
+  jurisdiction: z.enum(["INDIA", "USPTO", "EPO", "WIPO", "UK", "AUSTRALIA", "OTHER"]).default("INDIA"),
   filingDate: z.coerce.date(),
   publicationDate: z.coerce.date().optional().nullable(),
   grantDate: z.coerce.date().optional().nullable(),
-  applicant: z.string().min(2, "Applicant is required"),
+  publicationNumber: z.string().optional().default(""),
+  grantNumber: z.string().optional().default(""),
+  applicant: z.string().min(2, "Applicant is required").default("Dayananda Sagar Academy of Technology and Management"),
+  applicants: z.array(z.string()).optional().default([]),
+  assignees: z.array(z.string()).optional().default([]),
+  institutionAssociation: z.boolean().default(true),
+  ownershipEvidence: z.string().optional().default(""),
   inventors: z.array(z.string()).min(1, "At least one inventor is required"),
+  inventorsList: z.array(patentInventorSchema).optional().default([]),
+  internalFaculty: z.array(z.string()).optional().default([]),
+  legalStatus: z.enum(["FILED", "PUBLISHED", "UNDER_EXAMINATION", "GRANTED", "REFUSED", "WITHDRAWN", "ABANDONED", "EXPIRED", "UNKNOWN"]).default("FILED"),
   patentStatus: z.enum(["FILED", "PUBLISHED", "GRANTED", "REJECTED"]).default("FILED"),
   patentOffice: z.string().default("Indian Patent Office (IPO)"),
+  sourceUrl: z.string().optional().default(""),
   ...commonFields,
 });
 
 export const patentUpdateSchema = patentSchema.partial();
 
 // 6. ProjectConsultancy Schema
+export const projectReceiptSchema = z.object({
+  _id: z.string().optional(),
+  receiptDate: z.coerce.date().optional().nullable(),
+  financialYear: z.string().min(4, "Financial year required (e.g. 2023-24)"),
+  amount: z.coerce.number().min(0, "Receipt amount must be >= 0"),
+  referenceNumber: z.string().optional().default(""),
+  mcaAllocationPercentage: z.coerce.number().min(0).max(100).default(100),
+  notes: z.string().optional().default(""),
+  supportingDocument: z.string().optional().default(""),
+});
+
 export const projectConsultancySchema = z.object({
   title: z.string().min(3, "Project title is required"),
   type: z.enum(["SPONSORED_PROJECT", "CONSULTANCY"]),
   fundingAgencyOrClient: z.string().min(2, "Funding agency or client is required"),
-  sanctionedAmount: z.coerce.number().min(0, "Sanctioned amount must be >= 0"),
-  receivedAmount: z.coerce.number().min(0, "Received amount must be >= 0"),
+  projectNumber: z.string().optional().default(""),
+  sanctionedAmount: z.coerce.number().min(0, "Sanctioned amount must be >= 0").optional().default(0),
+  receivedAmount: z.coerce.number().min(0, "Received amount must be >= 0").default(0),
   startDate: z.coerce.date(),
   endDate: z.coerce.date().optional().nullable(),
   principalInvestigator: z.string().min(2, "Principal investigator is required"),
   coInvestigators: z.array(z.string()).optional().default([]),
+  scope: z.enum(["DEPARTMENT", "INSTITUTION"]).default("DEPARTMENT"),
+  notes: z.string().optional().default(""),
+  receipts: z.array(projectReceiptSchema).optional().default([]),
+  legacyReceiptYear: z.string().optional().nullable(),
   ...commonFields,
 });
 
@@ -165,6 +320,20 @@ export const placementSchema = z.object({
 export const placementUpdateSchema = placementSchema.partial();
 export const placementRecordSchema = placementSchema;
 export const placementRecordUpdateSchema = placementUpdateSchema;
+
+// 8b. DoctoralAward Schema (GO - GPHD)
+export const doctoralAwardSchema = z.object({
+  scholarName: z.string().min(2, "Scholar name is required"),
+  studentReference: z.string().optional().default(""),
+  programme: z.string().default("MCA"),
+  thesisTitle: z.string().min(3, "Thesis title is required"),
+  supervisorName: z.string().min(2, "Supervisor name is required"),
+  awardDate: z.coerce.date(),
+  awardYear: z.coerce.number().min(2000).max(2100),
+  ...commonFields,
+});
+
+export const doctoralAwardUpdateSchema = doctoralAwardSchema.partial();
 
 // 9. OutreachRecord Schema
 export const outreachSchema = z.object({

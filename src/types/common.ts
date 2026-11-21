@@ -1,11 +1,8 @@
 import { Types } from "mongoose";
 
-export type RecordStatus =
-  | "DRAFT"
-  | "SUBMITTED"
-  | "APPROVED"
-  | "REJECTED"
-  | "CORRECTION_REQUESTED";
+export type ActiveRecordStatus = "DRAFT" | "RECORDED" | "ARCHIVED";
+export type LegacyRecordStatus = "SUBMITTED" | "APPROVED" | "REJECTED" | "CORRECTION_REQUESTED";
+export type RecordStatus = ActiveRecordStatus | LegacyRecordStatus;
 
 export interface IEvidenceReference {
   fileName: string;

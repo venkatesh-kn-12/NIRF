@@ -17,7 +17,6 @@
 *.pem
 
 # Testing and Test Suites (Tests not needed for hosting)
-/tests/
 /coverage/
 /test-results/
 playwright.config.ts
@@ -41,6 +40,8 @@ PROJECT_RULES.md
 /.gsd/
 /design-reference/
 /scripts/
+graphify-out/
+TLR_HANDOFF_CONTEXT.md
 model_capabilities.yaml
 VERSION
 

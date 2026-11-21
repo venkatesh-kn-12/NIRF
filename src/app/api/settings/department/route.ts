@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { DepartmentConfig } from "@/models/DepartmentConfig";
+import { getRPReportingWindow, getGOReportingWindow } from "@/lib/reportingWindow";
 import {
   extractTokenFromRequest,
   getSessionUser,
@@ -52,9 +53,14 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const rpReportingWindow = getRPReportingWindow(config.selectedAcademicYear || "2024-25");
+    const goReportingWindow = getGOReportingWindow(config.selectedAcademicYear || "2024-25");
+
     return NextResponse.json({
       success: true,
       config,
+      rpReportingWindow,
+      goReportingWindow,
     });
   } catch (error) {
     console.error("GET /api/settings/department error:", error);
@@ -104,6 +110,8 @@ export async function PUT(req: NextRequest) {
       cycleEndDate,
       referenceDate,
       sanctionedIntake,
+      rpSettings,
+      goSettings,
       notifications,
     } = body;
 
@@ -113,6 +121,39 @@ export async function PUT(req: NextRequest) {
         { error: "Sanctioned intake must be a positive integer (minimum 1)." },
         { status: 400 }
       );
+    }
+
+    if (rpSettings) {
+      if (rpSettings.pubTargetPerFacultyPerYear !== undefined && rpSettings.pubTargetPerFacultyPerYear <= 0) {
+        return NextResponse.json({ error: "Publication target per faculty must be > 0" }, { status: 400 });
+      }
+      if (rpSettings.citationTargetPerFacultyWindow !== undefined && rpSettings.citationTargetPerFacultyWindow <= 0) {
+        return NextResponse.json({ error: "Citation target per faculty must be > 0" }, { status: 400 });
+      }
+      if (rpSettings.patentsPublishedTarget !== undefined && rpSettings.patentsPublishedTarget <= 0) {
+        return NextResponse.json({ error: "Patents published target must be > 0" }, { status: 400 });
+      }
+      if (rpSettings.patentsGrantedTarget !== undefined && rpSettings.patentsGrantedTarget <= 0) {
+        return NextResponse.json({ error: "Patents granted target must be > 0" }, { status: 400 });
+      }
+      if (rpSettings.researchFundingTargetPerFacultyYear !== undefined && rpSettings.researchFundingTargetPerFacultyYear <= 0) {
+        return NextResponse.json({ error: "Research funding target must be > 0" }, { status: 400 });
+      }
+      if (rpSettings.consultancyTargetPerFacultyYear !== undefined && rpSettings.consultancyTargetPerFacultyYear <= 0) {
+        return NextResponse.json({ error: "Consultancy target must be > 0" }, { status: 400 });
+      }
+    }
+
+    if (goSettings) {
+      if (goSettings.salaryTarget !== undefined && goSettings.salaryTarget <= 0) {
+        return NextResponse.json({ error: "Median salary target must be > 0" }, { status: 400 });
+      }
+      if (goSettings.phdAwardTargetPerYear !== undefined && goSettings.phdAwardTargetPerYear <= 0) {
+        return NextResponse.json({ error: "PhD award target per year must be > 0" }, { status: 400 });
+      }
+      if (goSettings.cohortYearsCount !== undefined && (goSettings.cohortYearsCount < 1 || goSettings.cohortYearsCount > 5)) {
+        return NextResponse.json({ error: "Cohort years count must be between 1 and 5" }, { status: 400 });
+      }
     }
 
     await connectDB();
@@ -139,6 +180,27 @@ export async function PUT(req: NextRequest) {
     if (cycleEndDate !== undefined) config.cycleEndDate = cycleEndDate;
     if (referenceDate !== undefined) config.referenceDate = referenceDate;
     if (sanctionedIntake !== undefined) config.sanctionedIntake = sanctionedIntake;
+
+    if (rpSettings) {
+      config.rpSettings = {
+        qpModel: rpSettings.qpModel || config.rpSettings?.qpModel || "QP_CITATIONS_AND_QUARTILE_V1",
+        pubTargetPerFacultyPerYear: Number(rpSettings.pubTargetPerFacultyPerYear) || config.rpSettings?.pubTargetPerFacultyPerYear || 1.0,
+        citationTargetPerFacultyWindow: Number(rpSettings.citationTargetPerFacultyWindow) || config.rpSettings?.citationTargetPerFacultyWindow || 5.0,
+        patentsPublishedTarget: Number(rpSettings.patentsPublishedTarget) || config.rpSettings?.patentsPublishedTarget || 6,
+        patentsGrantedTarget: Number(rpSettings.patentsGrantedTarget) || config.rpSettings?.patentsGrantedTarget || 3,
+        researchFundingTargetPerFacultyYear: Number(rpSettings.researchFundingTargetPerFacultyYear) || config.rpSettings?.researchFundingTargetPerFacultyYear || 50000,
+        consultancyTargetPerFacultyYear: Number(rpSettings.consultancyTargetPerFacultyYear) || config.rpSettings?.consultancyTargetPerFacultyYear || 25000,
+      };
+    }
+
+    if (goSettings) {
+      config.goSettings = {
+        gphModel: goSettings.gphModel || config.goSettings?.gphModel || "GPH_UNIQUE_OUTCOMES_V1",
+        salaryTarget: Number(goSettings.salaryTarget) || config.goSettings?.salaryTarget || 800000,
+        phdAwardTargetPerYear: Number(goSettings.phdAwardTargetPerYear) || config.goSettings?.phdAwardTargetPerYear || 1.0,
+        cohortYearsCount: Number(goSettings.cohortYearsCount) || config.goSettings?.cohortYearsCount || 3,
+      };
+    }
 
     if (notifications) {
       config.notifications = {

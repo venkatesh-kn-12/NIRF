@@ -631,7 +631,7 @@ export async function commitExtractionToDraftRecord(
     department: "MCA",
     academicYear: job.academicYear || "2024-25",
     reportingPeriod: "NIRF-2025",
-    status: "DRAFT", // Strict: AI CANNOT create approved records
+    status: "RECORDED", // Data-entry confirmation saves directly as RECORDED
   };
 
   const evidence = job.evidenceId as any;
@@ -690,7 +690,7 @@ export async function commitExtractionToDraftRecord(
 
   return {
     success: true,
-    message: `Draft ${config.modelName} record created successfully from verified extraction.`,
+    message: `${config.modelName} record saved and recorded successfully from extracted document.`,
     record: createdOrUpdatedDoc,
     job,
   };

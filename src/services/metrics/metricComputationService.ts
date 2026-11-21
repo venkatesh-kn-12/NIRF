@@ -141,33 +141,39 @@ export async function runDeterministicMetricComputation(
       }
     }
 
-    paramRawScore = Math.round(paramRawScore * 100) / 100;
-    const weightedScore = Math.round(paramRawScore * pConfig.weight * 100) / 100;
-
+    const allSubMetricsComputed = !hasPendingInput && !hasAwaitingSource && !hasUncomputable;
     let paramStatus: MetricCalculationStatus = "COMPUTED";
-    if (hasPendingInput && paramRawScore === 0) {
+    let finalRawScore: number | null = null;
+    let weightedScore: number | null = null;
+
+    if (hasPendingInput) {
       paramStatus = "PENDING_INPUT";
     } else if (hasAwaitingSource) {
       paramStatus = "AWAITING_SOURCE";
-    } else if (hasUncomputable && paramRawScore === 0) {
+    } else if (hasUncomputable) {
       paramStatus = "NOT_COMPUTABLE";
+    } else {
+      finalRawScore = Math.round(paramRawScore * 100) / 100;
+      weightedScore = Math.round(finalRawScore * pConfig.weight * 100) / 100;
+      totalComputedWeightedSum += weightedScore;
+      totalWeightSum += pConfig.weight;
     }
 
     parameterScores[paramKey] = {
       name: pConfig.name,
       weight: pConfig.weight,
-      rawScore: paramRawScore,
+      rawScore: finalRawScore,
       weightedScore,
       maxMarks: pConfig.maxMarks,
       status: paramStatus,
       subMetrics,
+      indicativeComputedSum: Math.round(paramRawScore * 100) / 100, // Preserved for transparency
     };
-
-    totalComputedWeightedSum += weightedScore;
-    totalWeightSum += pConfig.weight;
   }
 
-  const overallIndicativeScore = Math.round(totalComputedWeightedSum * 100) / 100;
+  // Authoritative overall score exists ONLY if all sub-metrics across all parameters are COMPUTED
+  const allParametersComputed = Object.values(parameterScores).every((p: any) => p.status === "COMPUTED");
+  const overallIndicativeScore = allParametersComputed ? Math.round(totalComputedWeightedSum * 100) / 100 : null;
 
   // 4. Counts breakdown
   const counts = {
@@ -178,12 +184,16 @@ export async function runDeterministicMetricComputation(
     pendingInput: evaluatedSubMetrics.filter((m) => m.status === "PENDING_INPUT").length,
   };
 
-  // 5. Clean prior computation results for this academic year and save new snapshot
-  await MetricResult.deleteMany({
-    department: "MCA",
-    academicYear,
-    methodologyVersion: NIRF_ENGINEERING_2025_VERSION,
-  });
+  // 5. Archive prior computation snapshots instead of destroying historical records
+  await MetricResult.updateMany(
+    {
+      department: "MCA",
+      academicYear,
+      methodologyVersion: NIRF_ENGINEERING_2025_VERSION,
+      isLatest: true,
+    },
+    { $set: { isLatest: false } }
+  );
 
   const savedResults: IMetricResult[] = [];
 

@@ -21,6 +21,7 @@ export interface IMetricResultData {
     formula: string;
     steps: IMetricExecutionTraceStep[];
     notes?: string;
+    blockers?: string[];
   };
 }
 
@@ -40,6 +41,7 @@ export interface IMetricResult extends Document {
   formulaVersion: string;
   auditReference: string;
   notes?: string;
+  isLatest: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,6 +106,7 @@ const MetricResultSchema = new Schema<IMetricResult>(
           },
         ],
         notes: { type: String, default: "" },
+        blockers: { type: [String], default: [] },
       },
     },
     status: {
@@ -130,6 +133,11 @@ const MetricResultSchema = new Schema<IMetricResult>(
     auditReference: {
       type: String,
       required: true,
+      index: true,
+    },
+    isLatest: {
+      type: Boolean,
+      default: true,
       index: true,
     },
     notes: {

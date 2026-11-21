@@ -5,6 +5,8 @@ import {
   getRecordById,
   updateRecord,
   deleteRecord,
+  archiveRecord,
+  restoreRecord,
   reviewRecord,
   RecordServiceError,
 } from "@/services/departmentRecordService";
@@ -89,9 +91,19 @@ export async function PATCH(
     if (!authData) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
 
     const body = await req.json();
+
+    if (body?.action === "archive") {
+      const res = await archiveRecord(Publication, "Publication", id, authData.user, req);
+      return NextResponse.json(res);
+    }
+    if (body?.action === "restore") {
+      const res = await restoreRecord(Publication, "Publication", id, authData.user, req);
+      return NextResponse.json(res);
+    }
+
     const parsed = reviewDecisionSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid decision", details: parsed.error.format() }, { status: 400 });
+      return NextResponse.json({ error: "Invalid action or decision", details: parsed.error.format() }, { status: 400 });
     }
 
     const updated = await reviewRecord(

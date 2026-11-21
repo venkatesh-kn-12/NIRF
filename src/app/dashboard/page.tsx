@@ -338,7 +338,7 @@ export default function DashboardPage() {
             <span>Reports &amp; DCS</span>
           </button>
 
-          {(user.role === "DEPARTMENT_ADMIN" || user.role === "REVIEWER") && (
+          {user.role === "DEPARTMENT_ADMIN" && (
             <button
               onClick={() => router.push("/audit")}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition"
@@ -375,6 +375,17 @@ export default function DashboardPage() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Department Simulator Disclaimer */}
+        <div className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-between text-xs shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-semibold text-slate-100">MCA Department Score Simulator</span>
+            <span className="text-slate-400">·</span>
+            <span className="text-slate-300">Departmental simulation — not an official NIRF score or rank.</span>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">NIRF Engineering 2025 Model</span>
+        </div>
+
         {/* User Profile Card */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -506,29 +517,27 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* KPI 2: Review Queue */}
+            {/* KPI 2: Active Data Records */}
             <div
-              onClick={() => router.push("/verification")}
-              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-amber-400 transition cursor-pointer group"
+              onClick={() => router.push("/students")}
+              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-emerald-400 transition cursor-pointer group"
             >
               <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-amber-700">
-                  Review Queue
+                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-emerald-700">
+                  Recorded Data
                 </span>
-                <span className="h-8 w-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
-                  <AlertTriangle className="h-4 w-4" />
+                <span className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <GraduationCap className="h-4 w-4" />
                 </span>
               </div>
               <div className="text-2xl font-black text-slate-900">
-                {summary?.completeness.reviewNeededRecords ?? 0}
+                {summary?.completeness.totalRecords ?? 0}
               </div>
-              <p className="text-[11px] text-amber-700 font-medium mt-1">
-                {(summary?.completeness.reviewNeededRecords ?? 0) > 0
-                  ? "Cases require verification action"
-                  : "All cases verified"}
+              <p className="text-[11px] text-emerald-700 font-medium mt-1">
+                Active in Department Simulator
               </p>
-              <div className="flex items-center text-[11px] font-semibold text-amber-800 mt-2 gap-1 group-hover:underline">
-                <span>Open Verification Queue</span>
+              <div className="flex items-center text-[11px] font-semibold text-emerald-800 mt-2 gap-1 group-hover:underline">
+                <span>View Student &amp; Faculty Data</span>
                 <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>

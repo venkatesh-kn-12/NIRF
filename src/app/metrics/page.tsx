@@ -331,30 +331,30 @@ export default function MetricComputationPage() {
           </div>
         )}
 
-        {/* Mandatory Regulatory Info Banner */}
+        {/* Department Simulator Banner */}
         <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#1D4ED8]" />
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1D4ED8] flex items-center justify-center shrink-0 mt-0.5">
-              <ShieldAlert className="h-5 w-5" />
+              <Calculator className="h-5 w-5" />
             </div>
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm font-bold text-slate-900 tracking-tight">
-                  NIRF Deterministic Compliance Mandate
+                  MCA Department Score Simulator
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-blue-100 text-[#1D4ED8] text-[10px] font-bold uppercase tracking-wider">
-                  Zero Estimation Policy
+                  Simulation Active
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium">
-                  MCA Departmental Indicative Metrics
+                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium border border-emerald-200">
+                  Direct Data Entry
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-800">
-                Only approved records are used for calculation. Missing inputs are marked as Not Computable or Pending Input and are never estimated.
+                Departmental simulation — not an official NIRF score or rank.
               </p>
               <p className="text-xs text-slate-500 leading-relaxed">
-                National Institutional Ranking Framework (NIRF) reporting guidelines strictly prohibit heuristic or predictive score imputation. Where empirical verification documents are unverified or absent, indicators default deterministically to an uncomputed state. Results reflect indicative departmental alignment and do not constitute official institutional NIRF ranks.
+                Calculations run immediately on saved contributor and administrator data across Students, Faculty, Publications, Patents, and Finance without requiring an external verification gate. Formulas combine published NIRF specifications with calibrated departmental simulation rules.
               </p>
             </div>
           </div>
@@ -438,9 +438,11 @@ export default function MetricComputationPage() {
           {/* Card 4: Overall Indicative Score */}
           <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              <span>Indicative Index</span>
-              <div className="h-7 w-7 rounded-lg bg-blue-50 text-[#1D4ED8] flex items-center justify-center font-bold">
-                %
+              <span>{data?.counts && data.counts.computed === data.counts.total ? "Complete Score" : "Partial Subtotal"}</span>
+              <div className={`h-7 w-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                data?.counts && data.counts.computed === data.counts.total ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+              }`}>
+                {data?.counts && data.counts.computed === data.counts.total ? "100%" : `${Math.round(((data?.counts?.computed || 0) / (data?.counts?.total || 1)) * 100)}%`}
               </div>
             </div>
             <div className="my-2">
@@ -450,10 +452,17 @@ export default function MetricComputationPage() {
                 </span>
                 <span className="text-xs text-slate-400 font-semibold">/ 100</span>
               </div>
-              <div className="text-[11px] text-slate-500">Weighted MCA Departmental baseline</div>
+              <div className="text-[11px] text-slate-500">
+                {data?.counts && data.counts.computed === data.counts.total
+                  ? "Full 5-parameter departmental score"
+                  : `Partial subtotal (${data?.counts?.computed || 0} of ${data?.counts?.total || 17} metrics)`}
+              </div>
             </div>
-            <div className="text-[10px] text-slate-400 font-medium pt-2 border-t border-slate-100">
-              Excludes unverified institutional feeds
+            <div className="text-[10px] text-slate-400 font-medium pt-2 border-t border-slate-100 flex items-center justify-between">
+              <span>Simulation Result</span>
+              <span className={data?.counts && data.counts.computed === data.counts.total ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>
+                {data?.counts && data.counts.computed === data.counts.total ? "Complete" : "In Progress"}
+              </span>
             </div>
           </div>
         </div>

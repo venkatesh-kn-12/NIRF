@@ -1,5 +1,22 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
+export interface IRPSettings {
+  qpModel: string;
+  pubTargetPerFacultyPerYear: number;
+  citationTargetPerFacultyWindow: number;
+  patentsPublishedTarget: number;
+  patentsGrantedTarget: number;
+  researchFundingTargetPerFacultyYear: number;
+  consultancyTargetPerFacultyYear: number;
+}
+
+export interface IGOSettings {
+  gphModel: string;
+  salaryTarget: number;
+  phdAwardTargetPerYear: number;
+  cohortYearsCount: number;
+}
+
 export interface IDepartmentConfig extends Document {
   institutionName: string;
   department: "MCA";
@@ -11,6 +28,8 @@ export interface IDepartmentConfig extends Document {
   cycleEndDate: string;
   referenceDate: string;
   sanctionedIntake: number;
+  rpSettings: IRPSettings;
+  goSettings: IGOSettings;
   notifications: {
     inAppAlerts: boolean;
     highDiscrepancyAlerts: boolean;
@@ -83,6 +102,66 @@ const DepartmentConfigSchema = new Schema<IDepartmentConfig>(
       required: true,
       default: 120,
       min: [1, "Sanctioned intake must be at least 1"],
+    },
+    rpSettings: {
+      qpModel: {
+        type: String,
+        default: "QP_CITATIONS_AND_QUARTILE_V1",
+        trim: true,
+      },
+      pubTargetPerFacultyPerYear: {
+        type: Number,
+        default: 1.0,
+        min: 0.1,
+      },
+      citationTargetPerFacultyWindow: {
+        type: Number,
+        default: 5.0,
+        min: 0.1,
+      },
+      patentsPublishedTarget: {
+        type: Number,
+        default: 6,
+        min: 1,
+      },
+      patentsGrantedTarget: {
+        type: Number,
+        default: 3,
+        min: 1,
+      },
+      researchFundingTargetPerFacultyYear: {
+        type: Number,
+        default: 50000,
+        min: 1000,
+      },
+      consultancyTargetPerFacultyYear: {
+        type: Number,
+        default: 25000,
+        min: 1000,
+      },
+    },
+    goSettings: {
+      gphModel: {
+        type: String,
+        default: "GPH_UNIQUE_OUTCOMES_V1",
+        trim: true,
+      },
+      salaryTarget: {
+        type: Number,
+        default: 800000, // 8 LPA preset
+        min: 10000,
+      },
+      phdAwardTargetPerYear: {
+        type: Number,
+        default: 1.0,
+        min: 0.1,
+      },
+      cohortYearsCount: {
+        type: Number,
+        default: 3,
+        min: 1,
+        max: 5,
+      },
     },
     notifications: {
       inAppAlerts: { type: Boolean, default: true },

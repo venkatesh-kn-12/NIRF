@@ -25,7 +25,7 @@ export async function POST(
     }
 
     const { decision, comment } = parsed.data;
-    const updated = await reviewRecord(
+    const updated: any = await reviewRecord(
       Faculty,
       "Faculty",
       id,

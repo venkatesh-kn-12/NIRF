@@ -22,7 +22,9 @@ import {
   Edit,
   ShieldCheck,
   Paperclip,
+  FileSpreadsheet,
 } from "lucide-react";
+import { CsvImportModal } from "@/components/CsvImportModal";
 
 interface StudentRecord {
   _id: string;
@@ -69,6 +71,7 @@ export default function StudentsPage() {
 
   // Modal State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentRecord | null>(null);
   const [reviewingStudent, setReviewingStudent] = useState<StudentRecord | null>(null);
   const [reviewDecision, setReviewDecision] = useState<"APPROVE" | "REJECT" | "REQUEST_CORRECTION">("APPROVE");
@@ -316,6 +319,15 @@ export default function StudentsPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {canCreateOrEdit && (
+            <button
+              onClick={() => setShowCsvModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold shadow-sm transition"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+              <span>Import CSV</span>
+            </button>
+          )}
           {canCreateOrEdit && (
             <button
               onClick={() => {
@@ -922,6 +934,14 @@ export default function StudentsPage() {
           </div>
         </div>
       )}
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={showCsvModal}
+        onClose={() => setShowCsvModal(false)}
+        moduleName="students"
+        moduleTitle="Students"
+        onImportSuccess={fetchStudents}
+      />
     </div>
   );
 }

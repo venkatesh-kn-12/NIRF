@@ -17,11 +17,11 @@ export async function POST(req: NextRequest) {
 
     const { user } = authData;
 
-    // Allowed for DEPARTMENT_ADMIN and FACULTY_CONTRIBUTOR during department testing
+    // Allowed for DEPARTMENT_ADMIN and FACULTY_CONTRIBUTOR
     if (!hasRole(user.role, ["DEPARTMENT_ADMIN", "FACULTY_CONTRIBUTOR"])) {
       return NextResponse.json(
         {
-          error: "Forbidden. Administrators and Faculty Contributors can trigger metric calculation.",
+          error: "Forbidden. Only Department Administrators and Faculty Contributors can trigger simulator calculation.",
           currentRole: user.role,
         },
         { status: 403 }

@@ -1,10 +1,14 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export type UserRole =
-  | "DEPARTMENT_ADMIN"
-  | "FACULTY_CONTRIBUTOR"
-  | "REVIEWER"
-  | "VIEWER";
+export type ActiveRole = "DEPARTMENT_ADMIN" | "FACULTY_CONTRIBUTOR" | "VIEWER";
+export type LegacyRole = "REVIEWER";
+export type UserRole = ActiveRole | LegacyRole;
+
+export const ACTIVE_ROLES: ActiveRole[] = [
+  "DEPARTMENT_ADMIN",
+  "FACULTY_CONTRIBUTOR",
+  "VIEWER",
+];
 
 export type UserStatus = "ACTIVE" | "INVITED" | "DISABLED";
 
